@@ -7,25 +7,80 @@ import copy
 import unicodedata
 SHOW_PASSES = False
 
-NASAL = u'm̥mɱn̪n̥nn̠ɳɲ̥ɲŋ̊ŋɴ'
-PLOSIVE = u'pbp̪b̪t̪d̪tdʈɖcɟkɡqɢʡʔ'
-FRICATIVE = u'ɸβfvθðszʃʒʂʐçʝxɣχʁħʕʜʢhɦ'
-APPROXIMANT = u'ʋɹɻjɰʁʕʢhɦ'
-TRILL = u'ʙrʀя' # does not include retroflex because of unsupported glyph stuff
-FLAP_OR_TAP = u'ⱱ̟ⱱɾɽɢ̆ʡ̯'
-LATERAL_FRIC = u'ɬɮɭ˔̊ʎ̥˔ʟ̝̊ʟ̝'
-LATERAL_APPROX = u'lɭʎʟ'
-LATERAL_FLAP = u'ɺɺ̠ʎ̯'
+MANNER = {"nasal": u'm̥mɱn̪n̥nn̠ɳɲ̥ɲŋ̊ŋɴ',
+           "plosive": u'pbp̪b̪t̪d̪tdʈɖcɟkɡqɢʡʔ',
+           "fricative": u'ɸβfvθðszʃʒʂʐçʝxɣχʁħʕʜʢhɦ',
+           "approximant": u'ʋɹɻjɰʁʕʢhɦ',
+           "trill": u'ʙrʀя', # does not include retroflex because of unsupported glyph stuff,
+           "flap_or_tap": u'ⱱ̟ⱱɾɽɢ̆ʡ̯',
+           "lateral_fric": u'ɬɮɭ˔̊ʎ̥˔ʟ̝̊ʟ̝',
+           "lateral_approx": u'lɭʎʟ',
+           "lateral_flap": u'ɺɺ̠ʎ̯'
+}
 
-MANNERS = {"nasal": NASAL,
-           "plosive": PLOSIVE,
-           "fricative": FRICATIVE,
-           "approximant": APPROXIMANT,
-           "trill": TRILL,
-           "flap_or_tap": FLAP_OR_TAP,
-           "lateral_fric": LATERAL_FRIC,
-           "lateral_approx": LATERAL_APPROX,
-           "lateral_flap": LATERAL_FLAP}
+PLACE = {
+    "labial": {
+        "bilabial": u'm̥pɸmbβⱱ̟',
+        "labiodental": u'p̪fɱb̪vʋⱱ'
+    },
+    "coronal": {
+        "dental": u'n̪t̪d̪θð',
+        "alveolar": u'n̥ntdszɹrɾɬɮlɺ',
+        "postlav": u'n̠ʃʒ',
+        "retroflex": u'ɳʈɖʂʐɻɽɭ˔̊ɭɺ̠'
+    },
+    "dorsal": {
+        "palatal": u'ɲ̥ɲcɟçʝjʎ̥˔ʎʎ̯',
+        "velar": u'ŋ̊ŋkɡxɣɰʟ̝̊ʟ̝ʟ',
+        "uvular": u'ɴqɢχʁʀɢ̆'
+    },
+    "radical": {
+        "pharyngeal": u'ħʕ',
+        "epiglottal": u'ʡʜʢяʡ̯'
+    },
+    "glottal": {
+        "glottal": u'ʔhɦ'
+    }
+}
+
+PLACE_MINOR = {}
+PLACE_MAJOR = {}
+for major in PLACE.keys():
+    PLACE_MAJOR[major] = u''
+    for minor in PLACE[major].keys():
+        s = PLACE[major][minor]
+        PLACE_MINOR[minor] = s
+        PLACE_MAJOR[major] += s
+
+VOICING = {
+    "unvoiced": u'm̥pɸp̪ft̪θn̥tsɬʃʈʂɭ˔̊ɲ̥cçʎ̥˔ŋ̊kxʟ̝̊qχħʡʜʔh',
+    "voiced": u'mbβʙⱱ̟ɱb̪vʋⱱn̪d̪ðndzɹrɾɮlɺn̠ʒɳɖʐɻɽɭɺ̠ɲɟʝjʎʎ̯ŋɡɣɰʟ̝ʟɴɢʁʀɢ̆ʕʢяʡ̯ɦ'
+}
+
+
+BACKNESS = {
+    'front': u'iyeøe̞ø̞ɛœæaɶ',
+    'near-front': u'ɪʏ',
+    'central': u'ɨʉɪ̈ʊ̈ɘɵəɜɞɐä',
+    'near-back': u'ʊ',
+    'back': u'ɯuɤoɤ̞o̞ʌɔɑɒ'
+}
+
+HEIGHT = {
+    'high/close': u'iyɨʉɯu',
+    'near-close': u'ɪʏɪ̈ʊ̈ʊ',
+    'close-mid': u'eøɘɵɤo',
+    'mid': u'e̞ø̞əɤ̞o̞',
+    'open-mid': u'ɛœɜɞʌɔ',
+    'near-open': u'æɐ',		
+    'low/open': u'aɶäɑɒ'
+}
+
+ROUNDEDNESS = {
+    'unrounded': u'iɨɯɪɪ̈eɘɤe̞əɤ̞ɛɜʌæɐaäɑ',
+    'rounded': u'yʉuʏʊ̈ʊøɵoø̞o̞œɞɔɐɶɒ'
+}
+
 
 class ParserNode:
     def Recognize(self, s0):
@@ -298,7 +353,7 @@ def DoTests():
          ,("[[u'a', u'a'], u'b']", 'str(p.Parse(u"aab")[1].GetParsedResult())')
         ])
 
-    p = GraphemeNode(NASAL)
+    p = GraphemeNode(MANNER["nasal"])
     expStr = "GraphemeNode([u'm\u0325', u'm', u'\u0271', u'n\u032a', u'n\u0325', u'n', u'n\u0320', u'\u0273', u'\u0272\u0325', u'\u0272', u'\u014b\u030a', u'\u014b', u'\u0274'])"
     RunTests({'p': p},
         [ (expStr, 'str(p)') ])
