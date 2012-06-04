@@ -58,6 +58,7 @@ VOICING = {
 }
 
 
+
 BACKNESS = {
     'front': u'iyeøe̞ø̞ɛœæaɶ',
     'near-front': u'ɪʏ',
@@ -81,6 +82,55 @@ ROUNDEDNESS = {
     'rounded': u'yʉuʏʊ̈ʊøɵoø̞o̞œɞɔɐɶɒ'
 }
 
+
+
+def CombiningCategory(c):
+    cat = unicodedata.category(c)
+    return cat[0] == 'M' or cat == 'Lm' or cat == 'Sk'
+
+def PopGrapheme(s):
+    if len(s) == 0: return None, s
+    elif len(s) == 1: return s, ''
+    elif CombiningCategory(s[0]):
+        raise Exception("Should not have a combining as first codepoint in grapheme")
+    else:
+        for ii in range(len(s[1:])):
+            if not(CombiningCategory(s[1+ii])):
+                return s[:ii+1], s[ii+1:]
+        return s, ''
+
+def GraphemeSplit(s):
+    graphemeL = []
+    while len(s) > 0:
+        g, s = PopGrapheme(s)
+        if g == None: break
+        graphemeL.append(g)
+    return graphemeL
+
+ALL_CONSONANTS = GraphemeSplit(VOICING['unvoiced'] + VOICING['voiced'])
+ALL_VOWELS = GraphemeSplit(ROUNDEDNESS['unrounded'] + ROUNDEDNESS['rounded'])
+
+ConsonantData = {}
+for c in ALL_CONSONANTS:
+    ConsonantData[c] = {}
+VowelData = {}
+for c in ALL_VOWELS:
+    VowelData[c] = {}
+
+def FillData(byGrapheme, byType, typeType):
+    for t in byType.keys():
+        graphemeL = GraphemeSplit(byType[t])
+        for grapheme in graphemeL:
+            byGrapheme[grapheme][typeType] = t
+
+FillData(ConsonantData, MANNER, 'manner')
+FillData(ConsonantData, PLACE_MAJOR, 'place_major')
+FillData(ConsonantData, PLACE_MINOR, 'place_minor')
+FillData(ConsonantData, VOICING, 'voicing')
+
+FillData(VowelData, BACKNESS, 'backness')
+FillData(VowelData, HEIGHT, 'height')
+FillData(VowelData, ROUNDEDNESS, 'roundedness')
 
 class ParserNode:
     def Recognize(self, s0):
@@ -130,28 +180,12 @@ class OrNode (ParserNode):
     def GetParsedResult(self):
         return self.ParsedNode.GetParsedResult()
 
-def CombiningCategory(c):
-    cat = unicodedata.category(c)
-    return cat[0] == 'M' or cat == 'Lm' or cat == 'Sk'
-
-def NextGrapheme(s):
-    if len(s) == 0: return None
-    elif len(s) == 1: return s
-    elif CombiningCategory(s[0]):
-        raise Exception("Should not have a combining as first codepoint in grapheme")
-    else:
-        for ii in range(len(s[1:])):
-            if not(CombiningCategory(s[1+ii])):
-                return s[:ii+1]
-        return s
-
 class GraphemeNode (ParserNode):
     def __init__(self, graphemes):
         s = u''.join(graphemes)
         self.Graphemes = []
         while len(s) > 0:
-            g = NextGrapheme(s)
-            s = s[len(g):]
+            g, s = PopGrapheme(s)
             self.Graphemes.append(g)
     def __repr__(self):
         return "GraphemeNode(" + str(self.Graphemes) + ")"
@@ -159,10 +193,10 @@ class GraphemeNode (ParserNode):
         self.Parsing()
         self.ParsedGrapheme = None
         if len(s0) == 0: return s0, None
-        g = NextGrapheme(s0)
+        g, s1 = PopGrapheme(s0)
         if g in self.Graphemes:
             self.ParsedGrapheme = g
-            return self.Parsed(s0, s0[len(g):])
+            return self.Parsed(s0, s1)
         return s0, None
     def GetParsedResult(self):
         return self.ParsedGrapheme
@@ -357,6 +391,7 @@ def DoTests():
     expStr = "GraphemeNode([u'm\u0325', u'm', u'\u0271', u'n\u032a', u'n\u0325', u'n', u'n\u0320', u'\u0273', u'\u0272\u0325', u'\u0272', u'\u014b\u030a', u'\u014b', u'\u0274'])"
     RunTests({'p': p},
         [ (expStr, 'str(p)') ])
+
 
 if __name__ == '__main__':
     DoTests()
