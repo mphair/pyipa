@@ -7,6 +7,8 @@ import copy
 import unicodedata
 SHOW_PASSES = False
 
+WHITESPACE_INCLUDES_NEWLINES = True
+
 MANNER = {"nasal": u'm̥mɱn̪n̥nn̠ɳɲ̥ɲŋ̊ŋɴ',
            "plosive": u'pbp̪b̪t̪d̪tdʈɖcɟkɡqɢʡʔ',
            "fricative": u'ɸβfvθðszʃʒʂʐçʝxɣχʁħʕʜʢhɦ',
@@ -83,7 +85,6 @@ ROUNDEDNESS = {
 }
 
 
-
 def CombiningCategory(c):
     cat = unicodedata.category(c)
     return cat[0] == 'M' or cat == 'Lm' or cat == 'Sk'
@@ -109,6 +110,7 @@ def GraphemeSplit(s):
 
 ALL_CONSONANTS = GraphemeSplit(VOICING['unvoiced'] + VOICING['voiced'])
 ALL_VOWELS = GraphemeSplit(ROUNDEDNESS['unrounded'] + ROUNDEDNESS['rounded'])
+ALL_ALPHA = ALL_CONSONANTS + ALL_VOWELS
 
 ConsonantData = {}
 for c in ALL_CONSONANTS:
@@ -209,7 +211,10 @@ class WhitespaceNode (ParserNode):
     def Parse(self, s0):
         self.Parsing()
         for ii in range(len(s0)):
-            if not(s0[ii].isspace()):
+            if (not(s0[ii].isspace())
+                or (not(WHITESPACE_INCLUDES_NEWLINES)
+                    and (s0[ii] == '\n' or s0[ii] == '\r')
+                )):
                 if ii > 0:
                     return self.Parsed(s0, s0[ii:])
                 else: return s0, None
@@ -261,6 +266,51 @@ class ManyNode (ParserNode):
             return None
         else:
             return [n.GetParsedResult() for n in self.ParsedNodes]
+
+# ============ Composite Helper Nodes =============
+class OptionalWhitespaceNode (OptionalNode):
+    def __init__(self):
+        OptionalNode.__init__(self, WhitespaceNode())
+    def __repr__(self):
+        return "OptionalWhitespaceNode()"
+
+class AlphaNode(GraphemeNode):
+    def __init__(self):
+        GraphemeNode.__init__(self, ALL_ALPHA)
+    def __repr__(self):
+        return "AlphaNode()"
+
+## Python automatically converts CrLf EOL when reading files as
+##   text so this isn't needed. Add it back in if data might come
+##   in from other means, like binary data converted or something
+##class EOLNode(OrNode):
+##    def __init__(self):
+##        OrNode.__init__(self, [
+##            GraphemeNode(u'\n')
+##            , GraphemeNode(u'\r')
+##            , SequenceNode(GraphemeNode(u'\n'), GraphemeNode(u'\r'))])
+class EOLNode(GraphemeNode):
+    def __init__(self):
+        GraphemeNode.__init__(self, u'\n')
+    def __repr__(self):
+        return "EOLNode()"
+
+class EndNode (ParserNode):
+    def __init__(self):
+        self.WhitespaceAndEOL = OptionalNode(ManyNode(OrNode([WhitespaceNode(), EOLNode()])))
+    def __repr__(self):
+        return "EndNode()"
+    def Parse(self, s0):
+        self.Parsing()
+        s1, res = self.WhitespaceAndEOL.Parse(s0)
+        if res != None and s1 == '':
+            return self.Parsed(s0, s1)
+        else:
+            return s0, None
+    def GetParsedResult(self):
+        return self.Text
+
+# ============ Testing =============
     
 def MakeTest(env):
     def Test(esPair):
@@ -315,9 +365,41 @@ def DoTests():
         [ (("", True), 'p.Recognize(u" ")')
          ,(("", True), 'p.Recognize(u"  ")')
          ,(("", True), 'p.Recognize(u" \\t  ")')
-         ,(("", True), 'p.Recognize(u" \\n  ")')
          ,((u"b", True), 'p.Recognize(u" b")')
-         ,((u"b ", False), 'p.Recognize(u"b ")')
+         ,((u"b ", False), 'p.Recognize(u"b ")') # whitespace is not optional
+        ])
+    RunTests({'p': p, 'WHITESPACE_INCLUDES_NEWLINES': True},[(("", True), 'p.Recognize(u" \\n  ")')])
+    global WHITESPACE_INCLUDES_NEWLINES
+    temp = WHITESPACE_INCLUDES_NEWLINES
+    WHITESPACE_INCLUDES_NEWLINES = False
+    RunTests({'p': p, 'WHITESPACE_INCLUDES_NEWLINES': False},[(("\n  ", True), 'p.Recognize(u" \\n  ")')])
+    WHITESPACE_INCLUDES_NEWLINES = temp
+
+    p = EOLNode()
+    #print p
+    RunTests({'p': p},
+        [ (("", True), 'p.Recognize(u"\\n")')
+         ,((" ", True), 'p.Recognize(u"\\n ")')
+         ,((" \n", False), 'p.Recognize(u" \\n")')
+        ])
+
+    p = EndNode()
+    #print p
+    RunTests({'p': p},
+        [ (("", True), 'p.Recognize(u"")')
+         ,(("", True), 'p.Recognize(u"\\n")')
+         ,(("", True), 'p.Recognize(u"\\n ")')
+         ,(("", True), 'p.Recognize(u" \\n")')
+         ,((" \na", False), 'p.Recognize(u" \\na")')
+        ])
+
+    p = OptionalWhitespaceNode()
+    # print p
+    RunTests({'p': p},
+        [ (("", True), 'p.Recognize(u"")')
+         ,(("", True), 'p.Recognize(u" ")')
+         ,(("b ", True), 'p.Recognize(u"b ")')
+         ,(("b ", True), 'p.Recognize(u" b ")')
         ])
 
     p = OptionalNode(GraphemeNode("a"))
@@ -392,6 +474,14 @@ def DoTests():
     RunTests({'p': p},
         [ (expStr, 'str(p)') ])
 
+    p = AlphaNode()
+    #print p
+    RunTests({'p': p},
+        [ (("", True), 'p.Recognize(u"a")')
+         ,(("", True), 'p.Recognize(u"b")')
+         ,((" ", False), 'p.Recognize(u" ")')
+         ,(("[", False), 'p.Recognize(u"[")')
+        ])
 
 if __name__ == '__main__':
     DoTests()
