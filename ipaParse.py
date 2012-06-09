@@ -5,9 +5,12 @@
 
 import copy
 import unicodedata
-SHOW_PASSES = False
 
+## Config
 WHITESPACE_INCLUDES_NEWLINES = True
+
+## Debug and Test Config
+SHOW_PASSES = False
 
 MANNER = {"nasal": u'm̥mɱn̪n̥nn̠ɳɲ̥ɲŋ̊ŋɴ',
            "plosive": u'pbp̪b̪t̪d̪tdʈɖcɟkɡqɢʡʔ',
@@ -145,6 +148,61 @@ class ParserNode:
     def Parsing(self):
         self.Text = None
 
+def WeaveAndClean(l1, l2):
+    result = []
+    for ii in range(len(l1)):
+        result.append(l1[ii])
+        if len(l2) > ii: result.append(l2[ii])
+    return [r for r in result if r != None]
+
+class SeparatedSequenceNode (ParserNode):
+    def __init__(self, separatorNode, sequenceNodes, initialSep=False, finalSep=False, storeSep=True):
+        self.Nodes = [node for node in sequenceNodes]
+        self.SepNode = separatorNode
+        self.InitialSep = initialSep
+        self.FinalSep = finalSep
+        self.StoreSep = storeSep
+    def __repr__(self):
+        initial = ""
+        final = ""
+        store = ""
+        if self.InitialSep: initial = ", initialSep=True"
+        if self.FinalSep: final = ", finalSep=True"
+        if not(self.StoreSep): store = ", storeSep=False"
+        return "SeparatedSequenceNode(" + str(self.SepNode) + ", " + str(self.Nodes) + initial + final + store + ")"
+    def Parse(self, s0):
+        self.Parsing()
+        self.ParsedNodes = []
+        self.Separators = []
+        s1 = s0
+        if self.InitialSep:
+            s1, res = self.SepNode.Parse(s1)
+            if res == None: return s0, None
+            self.Separators.append(res)
+        for ii in range(len(self.Nodes)):
+            node = self.Nodes[ii]
+            s1,res = node.Parse(s1)
+            if res == None:
+                return s0, None
+            self.ParsedNodes.append(res)
+            if self.FinalSep or (ii != len(self.Nodes) - 1):
+                s1,res = self.SepNode.Parse(s1)
+                if res == None:
+                    return s0, None
+                if self.StoreSep: self.Separators.append(res)
+        return self.Parsed(s0, s1)
+    def GetParsedResult(self):
+        if len(self.ParsedNodes) == 0:
+            return None
+        else:
+            nodes = [n.GetParsedResult() for n in self.ParsedNodes]
+            if not(self.StoreSep): return nodes
+            sep = [n.GetParsedResult() for n in self.Separators]
+            if self.InitialSep:
+                return WeaveAndClean(sep, nodes)
+            else:
+                return WeaveAndClean(nodes, sep)
+            
 class SequenceNode (ParserNode):
     def __init__(self, nodes):
         self.Nodes = [node for node in nodes]
@@ -210,6 +268,7 @@ class WhitespaceNode (ParserNode):
         return "WhitespaceNode()"
     def Parse(self, s0):
         self.Parsing()
+        if (len(s0) == 0): return s0, None
         for ii in range(len(s0)):
             if (not(s0[ii].isspace())
                 or (not(WHITESPACE_INCLUDES_NEWLINES)
@@ -267,7 +326,9 @@ class ManyNode (ParserNode):
         else:
             return [n.GetParsedResult() for n in self.ParsedNodes]
 
+# =================================================
 # ============ Composite Helper Nodes =============
+# =================================================
 class OptionalWhitespaceNode (OptionalNode):
     def __init__(self):
         OptionalNode.__init__(self, WhitespaceNode())
@@ -310,7 +371,9 @@ class EndNode (ParserNode):
     def GetParsedResult(self):
         return self.Text
 
-# ============ Testing =============
+# =================================================
+# ================== Testing ======================
+# =================================================
     
 def MakeTest(env):
     def Test(esPair):
@@ -366,7 +429,8 @@ def DoTests():
          ,(("", True), 'p.Recognize(u"  ")')
          ,(("", True), 'p.Recognize(u" \\t  ")')
          ,((u"b", True), 'p.Recognize(u" b")')
-         ,((u"b ", False), 'p.Recognize(u"b ")') # whitespace is not optional
+         ,((u"b", False), 'p.Recognize(u"b")') # whitespace is not optional
+         ,((u"", False), 'p.Recognize(u"")') # whitespace is not optional
         ])
     RunTests({'p': p, 'WHITESPACE_INCLUDES_NEWLINES': True},[(("", True), 'p.Recognize(u" \\n  ")')])
     global WHITESPACE_INCLUDES_NEWLINES
@@ -439,6 +503,77 @@ def DoTests():
          ,(("", True), 'p.Recognize(u"aaab")')
          ,(("b", False), 'p.Recognize(u"b")')
          ,(("a", False), 'p.Recognize(u"a")')
+        ])
+
+    p = SeparatedSequenceNode(
+            OptionalNode(WhitespaceNode()),
+            [
+                GraphemeNode("a")
+                , GraphemeNode("b")
+            ])
+    #print p
+    RunTests({'p': p},
+        [ (("", True), 'p.Recognize(u"ab")')
+         ,(("", True), 'p.Recognize(u"a b")')
+         ,(("", True), 'p.Recognize(u"a  b")')
+         ,((" ", True), 'p.Recognize(u"ab ")') # no sep picked up at end
+         ,((" ab", False), 'p.Recognize(u" ab")') # no sep picked up at beginning
+        ])
+
+    p = SeparatedSequenceNode(
+            WhitespaceNode(),   # NOTE: NOT OPTIONAL NOW (as opposed to test above)
+            [
+                GraphemeNode("a")
+                , GraphemeNode("b")
+            ]
+            , initialSep = True)
+    #print p
+    RunTests({'p': p},
+        [ (("a b", False), 'p.Recognize(u"a b")')
+         ,(("a b", False), 'p.Recognize(u"a b")')
+         ,(("a  b", False), 'p.Recognize(u"a  b")')
+         ,(("a b ", False), 'p.Recognize(u"a b ")')
+         ,(("", True), 'p.Recognize(u" a b")')
+         ,(("", True), 'p.Recognize(u" a b")')
+         ,((" ", True), 'p.Recognize(u" a b ")')
+        ])
+
+    p = SeparatedSequenceNode(
+            WhitespaceNode(),   # NOTE: NOT OPTIONAL NOW (as opposed to test earlier)
+            [
+                GraphemeNode("a")
+                , GraphemeNode("b")
+            ]
+            , finalSep = True)
+    #print p
+    RunTests({'p': p},
+        [ (("a b", False), 'p.Recognize(u"a b")')
+         ,(("a b", False), 'p.Recognize(u"a b")')
+         ,(("a  b", False), 'p.Recognize(u"a  b")')
+         ,(("", True), 'p.Recognize(u"a b ")')
+         ,((" a b", False), 'p.Recognize(u" a b")')
+         ,((" a b ", False), 'p.Recognize(u" a b ")')
+         ,(("a", True), 'p.Recognize(u"a b a")')
+        ])
+
+    p = SeparatedSequenceNode(
+            WhitespaceNode(),   # NOTE: NOT OPTIONAL NOW (as opposed to test earlier)
+            [
+                GraphemeNode("a")
+                , GraphemeNode("b")
+            ]
+            , finalSep = True
+            , storeSep = False
+        )
+    #print p
+    RunTests({'p': p},
+        [ (("a b", False), 'p.Recognize(u"a b")')
+         ,(("a b", False), 'p.Recognize(u"a b")')
+         ,(("a  b", False), 'p.Recognize(u"a  b")')
+         ,(("", True), 'p.Recognize(u"a b ")')
+         ,((" a b", False), 'p.Recognize(u" a b")')
+         ,((" a b ", False), 'p.Recognize(u" a b ")')
+         ,(("a", True), 'p.Recognize(u"a b a")')
         ])
 
     p = SequenceNode([

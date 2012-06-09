@@ -48,19 +48,20 @@ TESTS = [
 ]
 
 def ParseSoundChangeRule(ruleString):
-    return SequenceNode([
-            OptionalWhitespaceNode()
-            , AlphaNode()
-            , OptionalWhitespaceNode()
-            , GraphemeNode('>')
-            , OptionalWhitespaceNode()
-            , OptionalNode(AlphaNode())
-            , OptionalWhitespaceNode()
-            , GraphemeNode('/')
-             # not doing conditions currently
-            , OptionalWhitespaceNode()
-            , EndNode()
-        ]).Parse(ruleString)
+    return SeparatedSequenceNode(
+                separatorNode = OptionalWhitespaceNode()
+                , initialSep = True
+                , finalSep = True
+                , storeSep = False
+                , sequenceNodes = [
+                    AlphaNode()
+                    , GraphemeNode('>')
+                    , OptionalNode(AlphaNode())
+                    , GraphemeNode('/')
+                    # not doing conditions currently
+                    , EndNode()
+                ]
+        ).Parse(ruleString)
 
 def ProcessTestResult(result):
     s1, res = result
@@ -71,6 +72,3 @@ def ProcessTestResult(result):
 results = [ProcessTestResult(ParseSoundChangeRule(test)) for test in TESTS]    
 print results
 
-# TODO: Make a compound SeperatedSequenceNode
-#  that acts just like a sequence node but has seperators
-#  Can use that to make SeperatedSequenceNode(OptionalWhitespaceNode(), seq...)
