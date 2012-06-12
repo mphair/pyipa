@@ -138,6 +138,8 @@ FillData(VowelData, HEIGHT, 'height')
 FillData(VowelData, ROUNDEDNESS, 'roundedness')
 
 class ParserNode:
+    def __init__(self, name=None):
+        self.Name = name
     def Recognize(self, s0):
         s1, res = self.Parse(s0)
         return s1, res != None
@@ -147,6 +149,9 @@ class ParserNode:
         return s1, n
     def Parsing(self):
         self.Text = None
+    def FindAll(self, name):
+        if self.Name == name and self.Text != None: return [self]
+        else: return []
 
 def WeaveAndClean(l1, l2):
     result = []
@@ -156,7 +161,8 @@ def WeaveAndClean(l1, l2):
     return [r for r in result if r != None]
 
 class SeparatedSequenceNode (ParserNode):
-    def __init__(self, separatorNode, sequenceNodes, initialSep=False, finalSep=False, storeSep=True):
+    def __init__(self, separatorNode, sequenceNodes, initialSep=False, finalSep=False, storeSep=True, name=None):
+        ParserNode.__init__(self, name)
         self.Nodes = [node for node in sequenceNodes]
         self.SepNode = separatorNode
         self.InitialSep = initialSep
@@ -191,6 +197,13 @@ class SeparatedSequenceNode (ParserNode):
                     return s0, None
                 if self.StoreSep: self.Separators.append(res)
         return self.Parsed(s0, s1)
+    def __WeaveAndClean(self, nodes, sep):
+        if not(self.StoreSep):
+            return [node for node in nodes if node != None]
+        elif self.InitialSep:
+            return WeaveAndClean(sep, nodes)
+        else:
+            return WeaveAndClean(nodes, sep)
     def GetParsedResult(self):
         if len(self.ParsedNodes) == 0:
             return None
@@ -198,13 +211,16 @@ class SeparatedSequenceNode (ParserNode):
             nodes = [n.GetParsedResult() for n in self.ParsedNodes]
             if not(self.StoreSep): return nodes
             sep = [n.GetParsedResult() for n in self.Separators]
-            if self.InitialSep:
-                return WeaveAndClean(sep, nodes)
-            else:
-                return WeaveAndClean(nodes, sep)
+            return self.__WeaveAndClean(nodes, sep)
+    def FindAll(self, name):
+        results = ParserNode.FindAll(self, name)
+        for node in self.__WeaveAndClean(self.ParsedNodes, self.Separators):
+            results.extend(node.FindAll(name))
+        return results
             
 class SequenceNode (ParserNode):
-    def __init__(self, nodes):
+    def __init__(self, nodes, name=None):
+        ParserNode.__init__(self, name)
         self.Nodes = [node for node in nodes]
     def __repr__(self):
         return "SequenceNode(" + str(self.Nodes) + ")"
@@ -222,9 +238,15 @@ class SequenceNode (ParserNode):
             return None
         else:
             return [x for x in [n.GetParsedResult() for n in self.ParsedNodes] if x != None]
+    def FindAll(self, name):
+        results = ParserNode.FindAll(self, name)
+        for node in self.ParsedNodes:
+            results.extend(node.FindAll(name))
+        return results
     
 class OrNode (ParserNode):
-    def __init__(self, nodes):
+    def __init__(self, nodes, name=None):
+        ParserNode.__init__(self, name)
         self.Nodes = [node for node in nodes]
     def __repr__(self):
         return "OrNode(" + str(self.Nodes) + ")"
@@ -239,9 +261,14 @@ class OrNode (ParserNode):
         return s0, None
     def GetParsedResult(self):
         return self.ParsedNode.GetParsedResult()
+    def FindAll(self, name):
+        results = ParserNode.FindAll(self, name)
+        results.extend(self.ParsedNode.FindAll(name))
+        return results
 
 class GraphemeNode (ParserNode):
-    def __init__(self, graphemes):
+    def __init__(self, graphemes, name=None):
+        ParserNode.__init__(self, name)
         s = u''.join(graphemes)
         self.Graphemes = []
         while len(s) > 0:
@@ -262,8 +289,8 @@ class GraphemeNode (ParserNode):
         return self.ParsedGrapheme
 
 class WhitespaceNode (ParserNode):
-    def __init__(self):
-        pass
+    def __init__(self, name=None):
+        ParserNode.__init__(self, name)
     def __repr__(self):
         return "WhitespaceNode()"
     def Parse(self, s0):
@@ -282,7 +309,8 @@ class WhitespaceNode (ParserNode):
         return self.Text
 
 class OptionalNode (ParserNode):
-    def __init__(self, node):
+    def __init__(self, node, name=None):
+        ParserNode.__init__(self, name)
         self.Node = node
     def __repr__(self):
         return "OptionalNode(" + str(self.Node) + ")"
@@ -294,9 +322,15 @@ class OptionalNode (ParserNode):
     def GetParsedResult(self):
         if self.Chosen == None: return None
         else: return self.Chosen.GetParsedResult()
+    def FindAll(self, name):
+        results = ParserNode.FindAll(self, name)
+        if self.Chosen != None:
+            results.extend(self.Chosen.FindAll(name))
+        return results
 
 class ManyNode (ParserNode):
-    def __init__(self, node):
+    def __init__(self, node, name=None):
+        ParserNode.__init__(self, name)
         self.Node = node
     def __repr__(self):
         return "ManyNode(" + str(self.Node) + ")"
@@ -325,19 +359,24 @@ class ManyNode (ParserNode):
             return None
         else:
             return [n.GetParsedResult() for n in self.ParsedNodes]
+    def FindAll(self, name):
+        results = ParserNode.FindAll(self, name)
+        for node in self.ParsedNodes:
+            results.extend(node.FindAll(name))
+        return results
 
 # =================================================
 # ============ Composite Helper Nodes =============
 # =================================================
 class OptionalWhitespaceNode (OptionalNode):
-    def __init__(self):
-        OptionalNode.__init__(self, WhitespaceNode())
+    def __init__(self, name=None):
+        OptionalNode.__init__(self, WhitespaceNode(), name)
     def __repr__(self):
         return "OptionalWhitespaceNode()"
 
 class AlphaNode(GraphemeNode):
-    def __init__(self):
-        GraphemeNode.__init__(self, ALL_ALPHA)
+    def __init__(self, name=None):
+        GraphemeNode.__init__(self, ALL_ALPHA, name)
     def __repr__(self):
         return "AlphaNode()"
 
@@ -345,19 +384,21 @@ class AlphaNode(GraphemeNode):
 ##   text so this isn't needed. Add it back in if data might come
 ##   in from other means, like binary data converted or something
 ##class EOLNode(OrNode):
-##    def __init__(self):
+##    def __init__(self, name=None):
 ##        OrNode.__init__(self, [
 ##            GraphemeNode(u'\n')
 ##            , GraphemeNode(u'\r')
-##            , SequenceNode(GraphemeNode(u'\n'), GraphemeNode(u'\r'))])
+##            , SequenceNode(GraphemeNode(u'\n'), GraphemeNode(u'\r'))]
+##            , name)
 class EOLNode(GraphemeNode):
-    def __init__(self):
-        GraphemeNode.__init__(self, u'\n')
+    def __init__(self, name=None):
+        GraphemeNode.__init__(self, u'\n', name)
     def __repr__(self):
         return "EOLNode()"
 
 class EndNode (ParserNode):
-    def __init__(self):
+    def __init__(self, name=None):
+        ParserNode.__init__(self, name)
         self.WhitespaceAndEOL = OptionalNode(ManyNode(OrNode([WhitespaceNode(), EOLNode()])))
     def __repr__(self):
         return "EndNode()"
@@ -616,6 +657,26 @@ def DoTests():
          ,(("", True), 'p.Recognize(u"b")')
          ,((" ", False), 'p.Recognize(u" ")')
          ,(("[", False), 'p.Recognize(u"[")')
+        ])
+
+    p = SequenceNode([
+            ManyNode(OptionalNode(GraphemeNode("a", name="grapheme"), name="optional"), name="many")
+            , GraphemeNode(["b"], name="grapheme")
+            ]
+        , name = "seq")
+    #print p
+    RunTests({'p': p},
+        [ (u'b', 'p.Parse(u"ab")[1].FindAll("seq")[0].FindAll("grapheme")[1].Text')
+        ])
+
+    p = SeparatedSequenceNode(OptionalWhitespaceNode(), [
+            ManyNode(OptionalNode(GraphemeNode("a", name="grapheme"), name="optional"), name="many")
+            , GraphemeNode(["b"], name="grapheme")
+            ]
+        , name = "seq", storeSep = False, initialSep = True, finalSep = True)
+    #print p
+    RunTests({'p': p},
+        [ (u'b', 'p.Parse(u" a b ")[1].FindAll("seq")[0].FindAll("grapheme")[1].Text')
         ])
 
 if __name__ == '__main__':
