@@ -14,8 +14,8 @@ TESTS = [
 # (done) 2. add ability to name parts
 
 # todo to apply this:
-# 1. >>> here >>> Build parser from rule
-# 2. read word list
+# (done) 1. Build parser from rule
+# >>> here >>> 2. read word list
 # 3. apply rule appropriately
 
 
@@ -70,14 +70,26 @@ def ParseSoundChangeRule(ruleString):
                 ]
         ).Parse(ruleString)
 
+def CreateParserFromSoundChange(fromPattern): # no conditions yet
+    return ManyNode(OrNode([GraphemeNode(fromPattern, name="from"),OrNode([AlphaNode(),WhitespaceNode()])]))
+
+def DoReplacement(replacerPair, text):
+    parser, toPattern = replacerPair
+    s1, res = parser.Parse(text)
+    return res.ReplaceWith({"from": toPattern})
+
+def CreateReplacerPair(res):
+    fromPattern = res.FindAll("from")[0].Text
+    toPattern = res.FindAll("to")[0].Text
+    return CreateParserFromSoundChange(fromPattern), toPattern
+
 def ProcessTestResult(result):
     s1, res = result
     if res == None:
         return 'FAIL'
     else:
-        fromPattern = res.FindAll("from")[0].GetParsedResult()
-        toPattern = res.FindAll("to")[0].GetParsedResult()
-        return "from: " + fromPattern + ", to: " + toPattern
+        rp = CreateReplacerPair(res)
+        return DoReplacement(rp, u"a b c d")
 
 results = [ProcessTestResult(ParseSoundChangeRule(test)) for test in TESTS]    
 print results

@@ -152,6 +152,11 @@ class ParserNode:
     def FindAll(self, name):
         if self.Name == name and self.Text != None: return [self]
         else: return []
+    def ReplaceWith(self, d):
+        if self.Name in d.keys():
+            return d[self.Name]
+        else:
+            return self.Text
 
 def WeaveAndClean(l1, l2):
     result = []
@@ -217,7 +222,17 @@ class SeparatedSequenceNode (ParserNode):
         for node in self.__WeaveAndClean(self.ParsedNodes, self.Separators):
             results.extend(node.FindAll(name))
         return results
-            
+    def ReplaceWith(self, d):
+        if len(self.ParsedNodes) == 0:
+            return None
+        if self.Name in d.keys():
+            return d[self.Name]
+        else:
+            nodes = [n.ReplaceWith(d) for n in self.ParsedNodes]
+            if not(self.StoreSep): return ''.join(nodes)
+            sep = [n.ReplaceWith(d) for n in self.Separators]
+            return ''.join(self.__WeaveAndClean(nodes, sep))
+
 class SequenceNode (ParserNode):
     def __init__(self, nodes, name=None):
         ParserNode.__init__(self, name)
@@ -243,6 +258,13 @@ class SequenceNode (ParserNode):
         for node in self.ParsedNodes:
             results.extend(node.FindAll(name))
         return results
+    def ReplaceWith(self, d):
+        if len(self.ParsedNodes) == 0:
+            return None
+        elif self.Name in d.keys():
+            return d[self.Name]
+        else:
+            return ''.join([n.ReplaceWith(d) for n in self.ParsedNodes])
     
 class OrNode (ParserNode):
     def __init__(self, nodes, name=None):
@@ -265,6 +287,13 @@ class OrNode (ParserNode):
         results = ParserNode.FindAll(self, name)
         results.extend(self.ParsedNode.FindAll(name))
         return results
+    def ReplaceWith(self, d):
+        if self.ParsedNode == None:
+            return None
+        elif self.Name in d.keys():
+            return d[self.Name]
+        else:
+            return self.ParsedNode.ReplaceWith(d)
 
 class GraphemeNode (ParserNode):
     def __init__(self, graphemes, name=None):
@@ -327,11 +356,19 @@ class OptionalNode (ParserNode):
         if self.Chosen != None:
             results.extend(self.Chosen.FindAll(name))
         return results
+    def ReplaceWith(self, d):
+        if self.Chosen == None:
+            return None
+        elif self.Name in d.keys():
+            return d[self.Name]
+        else:
+            return self.Chosen.ReplaceWith(d)
 
 class ManyNode (ParserNode):
     def __init__(self, node, name=None):
         ParserNode.__init__(self, name)
         self.Node = node
+        self.ParsedNodes = []
     def __repr__(self):
         return "ManyNode(" + str(self.Node) + ")"
     def Parse(self, s0):
@@ -364,6 +401,13 @@ class ManyNode (ParserNode):
         for node in self.ParsedNodes:
             results.extend(node.FindAll(name))
         return results
+    def ReplaceWith(self, d):
+        if len(self.ParsedNodes) == 0:
+            return None
+        elif self.Name in d.keys():
+            return d[self.Name]
+        else:
+            return ''.join([n.ReplaceWith(d) for n in self.ParsedNodes])
 
 # =================================================
 # ============ Composite Helper Nodes =============
@@ -677,6 +721,33 @@ def DoTests():
     #print p
     RunTests({'p': p},
         [ (u'b', 'p.Parse(u" a b ")[1].FindAll("seq")[0].FindAll("grapheme")[1].Text')
+        ])
+
+    p = SequenceNode(name="seq", nodes=[
+            SeparatedSequenceNode(WhitespaceNode(name="ws"), name="sepseq", sequenceNodes=[
+                GraphemeNode(["a"], name="a")
+                , GraphemeNode(["b"], name="b")
+            ])
+            , GraphemeNode(["c"], name="c")
+            , OrNode(name="d", nodes=[
+                    GraphemeNode("e", name="e")
+                    , GraphemeNode("f", name="f")
+                ])
+        ])
+    #print p
+    s1,res = p.Parse(u"a bcf")
+    RunTests({'res': res},
+        [
+              (u'* bcf', 'res.ReplaceWith({"a": "*"})')
+            , (u'a*bcf', 'res.ReplaceWith({"ws": "*"})')
+            , (u'a *cf', 'res.ReplaceWith({"b": "*"})')
+            , (u'a b*f', 'res.ReplaceWith({"c": "*"})')
+            , (u'a bc*', 'res.ReplaceWith({"d": "*"})')
+            , (u'a bcf', 'res.ReplaceWith({"e": "*"})')
+            , (u'a bc*', 'res.ReplaceWith({"f": "*"})')
+            , (u'*cf', 'res.ReplaceWith({"sepseq": "*"})')
+            , (u'*', 'res.ReplaceWith({"seq": "*"})')
+            , (u'a *!f', 'res.ReplaceWith({"b": "*","c":"!"})')
         ])
 
 if __name__ == '__main__':
