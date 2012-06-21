@@ -264,7 +264,8 @@ class SequenceNode (ParserNode):
         elif self.Name in d.keys():
             return d[self.Name]
         else:
-            return ''.join([n.ReplaceWith(d) for n in self.ParsedNodes])
+            replaced = [n.ReplaceWith(d) for n in self.ParsedNodes]
+            return ''.join([r for r in replaced if r != None])
     
 class OrNode (ParserNode):
     def __init__(self, nodes, name=None):
@@ -455,6 +456,34 @@ class EndNode (ParserNode):
             return s0, None
     def GetParsedResult(self):
         return self.Text
+
+class MustBeNamedException(Exception): pass
+
+class SelectNameOneOfOrNoneNode(OptionalNode):
+    def __init__(self, namedOptionNodes, name=None):
+        L = [n for n in namedOptionNodes if n.Name != None]
+        if len(L) != len(namedOptionNodes): raise MustBeNamedException()
+        OptionalNode.__init__(self, OrNode(L), name)
+    def __repr__(self):
+        return "SelectNameOneOfOrNoneNode(" + str(self.Node.Nodes) + ")"
+    def GetSelectionName(self):
+        """Call this method directly (it isn't recursive) to determine what, if anything, was selected"""
+        if self.Text != None and self.Text != "":
+            return self.Node.ParsedNode.Name
+        else:
+            return None
+
+class HashNode(GraphemeNode):
+    def __init__(self):
+        GraphemeNode.__init__(self, u"#")
+    def __repr__(self):
+        return "HashNode()"
+
+class UnderscoreNode(GraphemeNode):
+    def __init__(self):
+        GraphemeNode.__init__(self, u"_")
+    def __repr__(self):
+        return "UnderscoreNode()"
 
 # =================================================
 # ================== Testing ======================
@@ -748,6 +777,32 @@ def DoTests():
             , (u'*cf', 'res.ReplaceWith({"sepseq": "*"})')
             , (u'*', 'res.ReplaceWith({"seq": "*"})')
             , (u'a *!f', 'res.ReplaceWith({"b": "*","c":"!"})')
+        ])
+
+    p = SelectNameOneOfOrNoneNode([GraphemeNode("a", name="a"), GraphemeNode("b", name="b")])
+    #print p
+    RunTests({'p': p},
+        [ (u"a", 'p.Parse(u"a")[1].GetSelectionName()')
+         ,(u"b", 'p.Parse(u"b")[1].GetSelectionName()')
+         ,(None, 'p.Parse(u"c")[1].GetSelectionName()')
+        ])
+
+    p = UnderscoreNode()
+    #print p
+    RunTests({'p': p},
+        [ (("", True), 'p.Recognize(u"_")')
+         ,(("b", True), 'p.Recognize(u"_b")')
+         ,((" ", False), 'p.Recognize(u" ")')
+         ,((" _", False), 'p.Recognize(u" _")')
+        ])
+
+    p = HashNode()
+    #print p
+    RunTests({'p': p},
+        [ (("", True), 'p.Recognize(u"#")')
+         ,(("b", True), 'p.Recognize(u"#b")')
+         ,((" ", False), 'p.Recognize(u" ")')
+         ,((" #", False), 'p.Recognize(u" #")')
         ])
 
 if __name__ == '__main__':

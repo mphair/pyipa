@@ -25,9 +25,13 @@ TESTS = [
     ,[ u's > /_#' # word-final s removed
      , [(u"abse abs see"
      , u"abse ab see")]]
+
+    ,[ u's > /#_' # word-initial s removed
+     , [(u"abse abs see"
+     , u"abse abs ee")]]
 # todo to parse this:
-# 1. >>> here >>> parse into the three parts, A > B / C
-# 2. parse condition
+# 1. parse into the three parts, A > B / C
+# 2. >>> here >>> parse condition
 #   a. parse word boundaries #
 #   b. parse position indicator _
 
@@ -62,6 +66,12 @@ TESTS = [
 #################################################
 #################################################
 
+TO_NODE_NAME = "to"
+FROM_NODE_NAME = "from"
+CONDITION_NODE_NAME = "condition"
+END_OF_WORD_CONDITION = "endOfWord"
+START_OF_WORD_CONDITION = "startOfWord"
+
 def ParseSoundChangeRule(ruleString):
     return SeparatedSequenceNode(
                 separatorNode = OptionalWhitespaceNode()
@@ -69,27 +79,56 @@ def ParseSoundChangeRule(ruleString):
                 , finalSep = True
                 , storeSep = False
                 , sequenceNodes = [
-                    AlphaNode(name="from")
+                    AlphaNode(name=FROM_NODE_NAME)
                     , GraphemeNode('>')
-                    , OptionalNode(AlphaNode(name="to"))
+                    , OptionalNode(AlphaNode(name=TO_NODE_NAME))
                     , GraphemeNode('/')
-                    # not doing conditions currently
+                    , SelectNameOneOfOrNoneNode(name=CONDITION_NODE_NAME,
+                        namedOptionNodes=[
+                              SequenceNode([UnderscoreNode(), HashNode()], name=END_OF_WORD_CONDITION)
+                            , SequenceNode([HashNode(), UnderscoreNode()], name=START_OF_WORD_CONDITION)])
                     , EndNode()
                 ]
         ).Parse(ruleString)
 
-def CreateParserFromSoundChange(fromPattern): # no conditions yet
-    return ManyNode(OrNode([GraphemeNode(fromPattern, name="from"),OrNode([AlphaNode(),WhitespaceNode()])]))
+def CreateParserFromSoundChange(fromPattern, condition):
+    if condition == None:
+        return ManyNode(OrNode([GraphemeNode(fromPattern, name=FROM_NODE_NAME),OrNode([AlphaNode(),WhitespaceNode()])]))
+    elif condition == START_OF_WORD_CONDITION:
+        return SequenceNode([
+            OptionalWhitespaceNode()
+            , ManyNode(
+                OrNode([
+                    SequenceNode([
+                        GraphemeNode(fromPattern, name=FROM_NODE_NAME)
+                        , OptionalNode(ManyNode(AlphaNode()))
+                        , OptionalNode(WhitespaceNode())
+                    ])
+                    , SequenceNode([ManyNode(AlphaNode()), OptionalNode(WhitespaceNode())])
+                ])
+            )
+        ])
+    elif condition == END_OF_WORD_CONDITION:
+        return ManyNode(OrNode([GraphemeNode(fromPattern, name=FROM_NODE_NAME),OrNode([AlphaNode(),WhitespaceNode()])]))
 
 def DoReplacement(replacerPair, text):
     parser, toPattern = replacerPair
     s1, res = parser.Parse(text)
-    return res.ReplaceWith({"from": toPattern})
+    return res.ReplaceWith({FROM_NODE_NAME: toPattern})
 
 def CreateReplacerPair(res):
-    fromPattern = res.FindAll("from")[0].Text
-    toPattern = res.FindAll("to")[0].Text
-    return CreateParserFromSoundChange(fromPattern), toPattern
+    fromPattern = res.FindAll(FROM_NODE_NAME)[0].Text
+    toSet = res.FindAll(TO_NODE_NAME)
+    if len(toSet) == 0:
+        toPattern = ""
+    else:
+        toPattern = toSet[0].Text
+    conditionNodeSet = res.FindAll(CONDITION_NODE_NAME)
+    if len(conditionNodeSet) == 0:
+        condition = None
+    else:
+        condition = conditionNodeSet[0].GetSelectionName()
+    return CreateParserFromSoundChange(fromPattern, condition), toPattern
 
 for test in TESTS:
     rule, L = test
