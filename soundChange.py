@@ -26,6 +26,9 @@ TESTS = [
 ##    ,[ u's > /_e' # s removed when followed by an e
 ##     , [(u"abse abs see seas"
 ##     , u"abe abs ee eas")]]
+    ,[ u'se > e /' # s removed when followed by an e
+     , [(u"abse abs see seas"
+     , u"abe abs ee eas")]]
 
 
 #################################################
@@ -34,7 +37,7 @@ TESTS = [
          ,u'abte abte')]]
     ,[u'{alveolar fricative} > t /'
      ,[(u'abse abze'
-     ,u'abte abte')]]
+         ,u'abte abte')]]
 # todo to parse this:
 # >>> here >>> 1. parse [ ] -- or terms
 # 2. parse { } -- ref terms
@@ -66,7 +69,7 @@ def ParseSoundChangeRule(ruleString):
                 , finalSep = True
                 , storeSep = False
                 , sequenceNodes = [
-                    AlphaNode(name=FROM_NODE_NAME)
+                    ManyNode(AlphaNode(), name=FROM_NODE_NAME)
                     , GraphemeNode('>')
                     , OptionalNode(AlphaNode(name=TO_NODE_NAME))
                     , GraphemeNode('/')
@@ -79,8 +82,11 @@ def ParseSoundChangeRule(ruleString):
         ).Parse(ruleString)
 
 def CreateParserFromSoundChange(fromPattern, condition):
+    L = GraphemeSplit(fromPattern)
+    if len(L) == 1: fromNode = GraphemeNode(fromPattern, name=FROM_NODE_NAME)
+    else: fromNode = SequenceNode([GraphemeNode(g) for g in L], name=FROM_NODE_NAME)
     if condition == None:
-        return ManyNode(OrNode([GraphemeNode(fromPattern, name=FROM_NODE_NAME),OrNode([AlphaNode(),WhitespaceNode()])]))
+        return ManyNode(OrNode([fromNode,OrNode([AlphaNode(),WhitespaceNode()])]))
     elif condition == START_OF_WORD_CONDITION:
         return SequenceNode([
             OptionalWhitespaceNode()
