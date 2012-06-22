@@ -11,17 +11,7 @@ TESTS = [
     [u'b > p /' # b goes to p
     , [(u"a b c d"
     , u"a p c d")]]
-# todo to parse this:
-# (done) 1. parse into the three parts, A > B / C
-# (done) 2. add ability to name parts
 
-# todo to apply this:
-# (done) 1. Build parser from rule
-# (done) 2. read word list
-# (done) 3. apply rule appropriately
-
-
-#################################################
     ,[ u's > /_#' # word-final s removed
      , [(u"abse abs see seas"
      , u"abse ab see sea")]]
@@ -29,16 +19,13 @@ TESTS = [
     ,[ u's > /#_' # word-initial s removed
      , [(u"abse abs see seas"
      , u"abse abs ee eas")]]
-# todo to parse this:
-# (done) 1. parse into the three parts, A > B / C
-# (done) 2. parse condition
-# (done)  a. parse word boundaries #
-# (done)  b. parse position indicator _
 
-# todo to apply this:
-# (done) 1. parse rule
-# (done) 2. read word list
-# (done) 3. apply rule appropriately
+#################################################
+### Not going to do this style of thing, currently.
+###   Can be replicated by u"se > e /"
+##    ,[ u's > /_e' # s removed when followed by an e
+##     , [(u"abse abs see seas"
+##     , u"abe abs ee eas")]]
 
 
 #################################################
@@ -55,8 +42,8 @@ TESTS = [
 
 #################################################
     ,[u'{palatal plosive} > {palatal nasal} /'
-      , [(u'ac', u'aɲ̥')
-        ,(u'aɟ', u'aɲ')]
+      , [(u'aca ac ca c', u'aɲ̥a aɲ̥ ɲ̥a ɲ̥')
+        ,(u'aɟa aɟ ɟa ɟ', u'aɲa aɲ ɲa ɲ')]
       ]
 # todo to parse this:
 # 1. find individual sound mappings,
