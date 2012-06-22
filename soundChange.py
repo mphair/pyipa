@@ -147,21 +147,22 @@ def CreateReplacerPair(res):
         condition = conditionNodeSet[0].GetSelectionName()
     return CreateParserFromSoundChange(fromPatterns, condition), toPattern
 
-for test in TESTS:
-    rule, L = test
-    s1, res = ParseSoundChangeRule(rule)
-    if res == None:
-        print rule, ": DID NOT PARSE"
-        continue
-    rp = CreateReplacerPair(res)
-    for entry in L:
-        word,expected = entry
-        try:
-            actual = DoReplacement(rp, word)
-            if (actual != expected):
-                print rule, ": expected=", expected, "actual=", actual
-            else:
-                print rule, ": SUCCESS"
-        except Exception as e:
-            print rule, entry, ": EXCEPTION", e
+if __name__ == '__main__':
+    for test in TESTS:
+        rule, L = test
+        s1, res = ParseSoundChangeRule(rule)
+        if res == None:
+            print rule, ": DID NOT PARSE"
+            continue
+        rp = CreateReplacerPair(res)
+        for entry in L:
+            word,expected = entry
+            try:
+                actual = DoReplacement(rp, word)
+                if (actual != expected):
+                    print rule, ": expected=", expected, "actual=", actual
+                else:
+                    print rule, ": SUCCESS"
+            except Exception as e:
+                print rule, entry, ": EXCEPTION", e
 
