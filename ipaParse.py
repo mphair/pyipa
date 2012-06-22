@@ -485,6 +485,51 @@ class UnderscoreNode(GraphemeNode):
     def __repr__(self):
         return "UnderscoreNode()"
 
+class ManyEndsWithSubsetNode(ParserNode):
+    """e.g. Seq(Many(Alpha), Grapheme(a))... needed because no backtracking normally."""
+    def __init__(self, manyOfNode, endsWithNode, backtrackStepSize, name=None):
+        ParserNode.__init__(self, name)
+        self.Many = ManyNode(manyOfNode)
+        self.EndsWith = endsWithNode
+        self.BacktrackStepSize = backtrackStepSize
+    def __repr__(self):
+        vals = [self.Many.Node, self.EndsWithNode, self.BacktrackStepSize]
+        s = ",".join([str(val) for val in vals])
+        return "ManyEndsWithSubsetNode(" + s + ")"
+    def Parse(self, s0):
+        self.Parsing()
+        self.ParsedMany = None
+        self.ParsedEndsWith = None
+        s1, res = self.Many.Parse(s0)
+        if res == None: return s0, None
+        L = GraphemeSplit(res.Text)
+        for backtrack in range(self.BacktrackStepSize, len(L), self.BacktrackStepSize):
+            s1a, resa = self.Many.Parse(''.join(L[0:-backtrack]))
+            if resa == None: return s0, None
+            s1b, resb = self.EndsWith.Parse(''.join(L[-backtrack:]))
+            if resb != None:
+                self.ParsedMany = resa
+                self.ParsedEndsWith = resb
+                return self.Parsed(s0, s1b+s1)
+        return s0, None
+    def GetParsedResult(self):
+        if self.ParsedMany == None:
+            return None
+        else:
+            return self.ParsedMany.GetParsedResult() + [self.ParsedEndsWith.GetParsedResult()]
+    def FindAll(self, name):
+        results = ParserNode.FindAll(self, name)
+        results.extend(self.ParsedMany.FindAll(name))
+        results.extend(self.ParsedEndsWith.FindAll(name))
+        return results
+    def ReplaceWith(self, d):
+        if self.ParsedMany == None:
+            return None
+        elif self.Name in d.keys():
+            return d[self.Name]
+        else:
+            return self.ParsedMany.ReplaceWith(d) + self.ParsedEndsWith.ReplaceWith(d)
+
 # =================================================
 # ================== Testing ======================
 # =================================================
@@ -803,6 +848,16 @@ def DoTests():
          ,(("b", True), 'p.Recognize(u"#b")')
          ,((" ", False), 'p.Recognize(u" ")')
          ,((" #", False), 'p.Recognize(u" #")')
+        ])
+
+    p = ManyEndsWithSubsetNode(AlphaNode(), GraphemeNode("a"), 1)
+    #print p
+    RunTests({'p': p},
+        [ (("", True), 'p.Recognize(u"aaaa")')
+         ,(("bbb", True), 'p.Recognize(u"aaaabbb")')
+         ,(("", True), 'p.Recognize(u"abababa")')
+         ,(("a", False), 'p.Recognize(u"a")')
+         ,(("bbb", False), 'p.Recognize(u"bbb")')
         ])
 
 if __name__ == '__main__':

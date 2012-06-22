@@ -23,22 +23,22 @@ TESTS = [
 
 #################################################
     ,[ u's > /_#' # word-final s removed
-     , [(u"abse abs see"
-     , u"abse ab see")]]
+     , [(u"abse abs see seas"
+     , u"abse ab see sea")]]
 
     ,[ u's > /#_' # word-initial s removed
-     , [(u"abse abs see"
-     , u"abse abs ee")]]
+     , [(u"abse abs see seas"
+     , u"abse abs ee eas")]]
 # todo to parse this:
-# 1. parse into the three parts, A > B / C
-# 2. >>> here >>> parse condition
-#   a. parse word boundaries #
-#   b. parse position indicator _
+# (done) 1. parse into the three parts, A > B / C
+# (done) 2. parse condition
+# (done)  a. parse word boundaries #
+# (done)  b. parse position indicator _
 
 # todo to apply this:
-# 1. parse rule
-# 2. read word list
-# 3. apply rule appropriately
+# (done) 1. parse rule
+# (done) 2. read word list
+# (done) 3. apply rule appropriately
 
 
 #################################################
@@ -49,8 +49,8 @@ TESTS = [
      ,[(u'abse abze'
      ,u'abte abte')]]
 # todo to parse this:
-# 1. parse [ ] or terms 
-# 2. parse { } ref terms
+# >>> here >>> 1. parse [ ] -- or terms
+# 2. parse { } -- ref terms
 
 
 #################################################
@@ -102,14 +102,29 @@ def CreateParserFromSoundChange(fromPattern, condition):
                     SequenceNode([
                         GraphemeNode(fromPattern, name=FROM_NODE_NAME)
                         , OptionalNode(ManyNode(AlphaNode()))
-                        , OptionalNode(WhitespaceNode())
+                        , OrNode([EndNode(), WhitespaceNode()])
                     ])
                     , SequenceNode([ManyNode(AlphaNode()), OptionalNode(WhitespaceNode())])
                 ])
             )
         ])
     elif condition == END_OF_WORD_CONDITION:
-        return ManyNode(OrNode([GraphemeNode(fromPattern, name=FROM_NODE_NAME),OrNode([AlphaNode(),WhitespaceNode()])]))
+        return SequenceNode([
+            OptionalWhitespaceNode()
+            , ManyNode(
+                OrNode([
+                    SequenceNode([
+                        ManyEndsWithSubsetNode(
+                            OptionalNode(AlphaNode())
+                            , GraphemeNode(fromPattern, name=FROM_NODE_NAME)
+                            , 1
+                        )
+                        , OrNode([EndNode(), WhitespaceNode()])
+                    ])
+                    , SequenceNode([ManyNode(AlphaNode()), OptionalNode(WhitespaceNode())])
+                ])
+            )
+        ])
 
 def DoReplacement(replacerPair, text):
     parser, toPattern = replacerPair
