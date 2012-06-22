@@ -39,8 +39,8 @@ TESTS = [
      ,[(u'abse abze'
          ,u'abte abte')]]
 # todo to parse this:
-# >>> here >>> 1. parse [ ] -- or terms
-# 2. parse { } -- ref terms
+# (done) 1. parse [ ] -- or terms
+# >>> here >>> 2. parse { } -- ref terms
 
 
 #################################################
@@ -69,7 +69,10 @@ def ParseSoundChangeRule(ruleString):
                 , finalSep = True
                 , storeSep = False
                 , sequenceNodes = [
-                    ManyNode(AlphaNode(), name=FROM_NODE_NAME)
+                    OrNode([
+                        ManyNode(AlphaNode(), name=FROM_NODE_NAME)
+                       ,GroupNode(GraphemeNode('['),ManyNode(AlphaNode(name=FROM_NODE_NAME)),GraphemeNode(']')) # inside [ ], each grapheme is an option
+                    ])
                     , GraphemeNode('>')
                     , OptionalNode(AlphaNode(name=TO_NODE_NAME))
                     , GraphemeNode('/')
@@ -81,10 +84,16 @@ def ParseSoundChangeRule(ruleString):
                 ]
         ).Parse(ruleString)
 
-def CreateParserFromSoundChange(fromPattern, condition):
-    L = GraphemeSplit(fromPattern)
-    if len(L) == 1: fromNode = GraphemeNode(fromPattern, name=FROM_NODE_NAME)
-    else: fromNode = SequenceNode([GraphemeNode(g) for g in L], name=FROM_NODE_NAME)
+def CreateParserFromSoundChange(fromPatterns, condition):
+    fromNodes = []
+    for fromPattern in fromPatterns:
+        L = GraphemeSplit(fromPattern)
+        if len(L) == 1: fromNode = GraphemeNode(fromPattern, name=FROM_NODE_NAME)
+        else: fromNode = SequenceNode([GraphemeNode(g) for g in L], name=FROM_NODE_NAME)
+        fromNodes.append(fromNode)
+    if len(fromNodes) == 1: fromNode = fromNodes[0]
+    else: fromNode = OrNode(fromNodes)
+
     if condition == None:
         return ManyNode(OrNode([fromNode,OrNode([AlphaNode(),WhitespaceNode()])]))
     elif condition == START_OF_WORD_CONDITION:
@@ -125,7 +134,7 @@ def DoReplacement(replacerPair, text):
     return res.ReplaceWith({FROM_NODE_NAME: toPattern})
 
 def CreateReplacerPair(res):
-    fromPattern = res.FindAll(FROM_NODE_NAME)[0].Text
+    fromPatterns = [n.Text for n in res.FindAll(FROM_NODE_NAME)]
     toSet = res.FindAll(TO_NODE_NAME)
     if len(toSet) == 0:
         toPattern = ""
@@ -136,7 +145,7 @@ def CreateReplacerPair(res):
         condition = None
     else:
         condition = conditionNodeSet[0].GetSelectionName()
-    return CreateParserFromSoundChange(fromPattern, condition), toPattern
+    return CreateParserFromSoundChange(fromPatterns, condition), toPattern
 
 for test in TESTS:
     rule, L = test

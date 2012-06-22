@@ -305,7 +305,9 @@ class GraphemeNode (ParserNode):
             g, s = PopGrapheme(s)
             self.Graphemes.append(g)
     def __repr__(self):
-        return "GraphemeNode(" + str(self.Graphemes) + ")"
+        if self.Name != None: nameStr = ", name='" + self.Name + "'"
+        else: nameStr = ""
+        return "GraphemeNode(" + str(self.Graphemes) + nameStr + ")"
     def Parse(self, s0):
         self.Parsing()
         self.ParsedGrapheme = None
@@ -493,7 +495,7 @@ class ManyEndsWithSubsetNode(ParserNode):
         self.EndsWith = endsWithNode
         self.BacktrackStepSize = backtrackStepSize
     def __repr__(self):
-        vals = [self.Many.Node, self.EndsWithNode, self.BacktrackStepSize]
+        vals = [self.Many.Node, self.EndsWith, self.BacktrackStepSize]
         s = ",".join([str(val) for val in vals])
         return "ManyEndsWithSubsetNode(" + s + ")"
     def Parse(self, s0):
@@ -530,6 +532,13 @@ class ManyEndsWithSubsetNode(ParserNode):
         else:
             return self.ParsedMany.ReplaceWith(d) + self.ParsedEndsWith.ReplaceWith(d)
 
+class GroupNode(SequenceNode):
+    def __init__(self, leftGrouperNode, groupedNodes, rightGrouperNode, name=None):
+        SequenceNode.__init__(self, [leftGrouperNode, groupedNodes, rightGrouperNode], name)
+    def __repr__(self):
+        s = ",".join([str(val) for val in self.Nodes])
+        return "GroupNode(" + s + ")"
+
 # =================================================
 # ================== Testing ======================
 # =================================================
@@ -551,6 +560,13 @@ def MakeTest(env):
 def RunTests(env, esPairs):
     return all(map(MakeTest(env), esPairs))
 
+def CheckRepr(node):
+    """without loading the node classes into the eval env in MakeTest, we have to do this test seperately"""
+    if str(node) == str(eval(str(node))):
+        if SHOW_PASSES: print "PASS: str for", str(node)
+    else:
+        print "FAIL: str for", str(node)
+
 def DoTests():
     p = GraphemeNode(['a','b'])
     RunTests({'p': p}, 
@@ -558,6 +574,7 @@ def DoTests():
          ,(("", True), 'p.Recognize(u"b")')
          ,(("e", False), 'p.Recognize(u"e")')
         ])
+    CheckRepr(p)
 
     p = GraphemeNode(u"m̥ɱn̪n̥ŋ̊ɴ")
     RunTests({'p': p}, 
@@ -572,6 +589,7 @@ def DoTests():
          ,((u"̊", False), u'p.Recognize(u"̊")')
          ,(("e", False), u'p.Recognize(u"e")')
         ])
+    CheckRepr(p)
 
     p = OrNode([GraphemeNode("a"), GraphemeNode("b")])
     #print p
@@ -580,6 +598,7 @@ def DoTests():
          ,(("", True), 'p.Recognize(u"b")')
          ,((u"e", False), 'p.Recognize(u"e")')
         ])
+    CheckRepr(p)
 
     p = WhitespaceNode()
     #print p
@@ -592,10 +611,12 @@ def DoTests():
          ,((u"", False), 'p.Recognize(u"")') # whitespace is not optional
         ])
     RunTests({'p': p, 'WHITESPACE_INCLUDES_NEWLINES': True},[(("", True), 'p.Recognize(u" \\n  ")')])
+    CheckRepr(p)
     global WHITESPACE_INCLUDES_NEWLINES
     temp = WHITESPACE_INCLUDES_NEWLINES
     WHITESPACE_INCLUDES_NEWLINES = False
     RunTests({'p': p, 'WHITESPACE_INCLUDES_NEWLINES': False},[(("\n  ", True), 'p.Recognize(u" \\n  ")')])
+    CheckRepr(p)
     WHITESPACE_INCLUDES_NEWLINES = temp
 
     p = EOLNode()
@@ -605,6 +626,7 @@ def DoTests():
          ,((" ", True), 'p.Recognize(u"\\n ")')
          ,((" \n", False), 'p.Recognize(u" \\n")')
         ])
+    CheckRepr(p)
 
     p = EndNode()
     #print p
@@ -615,6 +637,7 @@ def DoTests():
          ,(("", True), 'p.Recognize(u" \\n")')
          ,((" \na", False), 'p.Recognize(u" \\na")')
         ])
+    CheckRepr(p)
 
     p = OptionalWhitespaceNode()
     # print p
@@ -624,6 +647,7 @@ def DoTests():
          ,(("b ", True), 'p.Recognize(u"b ")')
          ,(("b ", True), 'p.Recognize(u" b ")')
         ])
+    CheckRepr(p)
 
     p = OptionalNode(GraphemeNode("a"))
     #print p
@@ -632,6 +656,7 @@ def DoTests():
          ,((u"b", True), 'p.Recognize(u"b")')
          ,(u"a", 'str(p.Parse(u"a")[1].GetParsedResult())')
         ])
+    CheckRepr(p)
     
     p = SequenceNode([
         OrNode([
@@ -650,6 +675,7 @@ def DoTests():
          ,(("e", False), 'p.Recognize(u"e")')
          ,("[u'a', u'c']", 'str(p.Parse(u"ac")[1].GetParsedResult())')
         ])
+    CheckRepr(p)
 
     p = SequenceNode([
             ManyNode(GraphemeNode("a"))
@@ -663,6 +689,7 @@ def DoTests():
          ,(("b", False), 'p.Recognize(u"b")')
          ,(("a", False), 'p.Recognize(u"a")')
         ])
+    CheckRepr(p)
 
     p = SeparatedSequenceNode(
             OptionalNode(WhitespaceNode()),
@@ -678,6 +705,7 @@ def DoTests():
          ,((" ", True), 'p.Recognize(u"ab ")') # no sep picked up at end
          ,((" ab", False), 'p.Recognize(u" ab")') # no sep picked up at beginning
         ])
+    CheckRepr(p)
 
     p = SeparatedSequenceNode(
             WhitespaceNode(),   # NOTE: NOT OPTIONAL NOW (as opposed to test above)
@@ -696,6 +724,7 @@ def DoTests():
          ,(("", True), 'p.Recognize(u" a b")')
          ,((" ", True), 'p.Recognize(u" a b ")')
         ])
+    CheckRepr(p)
 
     p = SeparatedSequenceNode(
             WhitespaceNode(),   # NOTE: NOT OPTIONAL NOW (as opposed to test earlier)
@@ -714,6 +743,7 @@ def DoTests():
          ,((" a b ", False), 'p.Recognize(u" a b ")')
          ,(("a", True), 'p.Recognize(u"a b a")')
         ])
+    CheckRepr(p)
 
     p = SeparatedSequenceNode(
             WhitespaceNode(),   # NOTE: NOT OPTIONAL NOW (as opposed to test earlier)
@@ -734,6 +764,7 @@ def DoTests():
          ,((" a b ", False), 'p.Recognize(u" a b ")')
          ,(("a", True), 'p.Recognize(u"a b a")')
         ])
+    CheckRepr(p)
 
     p = SequenceNode([
             OptionalNode(ManyNode(GraphemeNode("e")))
@@ -748,6 +779,7 @@ def DoTests():
          ,(("e", False), 'p.Recognize(u"e")')
          ,("[[u'e', u'e'], u'f']", 'str(p.Parse(u"eef")[1].GetParsedResult())')
         ])
+    CheckRepr(p)
 
     p = SequenceNode([
             ManyNode(OptionalNode(GraphemeNode("a")))
@@ -762,11 +794,13 @@ def DoTests():
          ,(("a", False), 'p.Recognize(u"a")')
          ,("[[u'a', u'a'], u'b']", 'str(p.Parse(u"aab")[1].GetParsedResult())')
         ])
+    CheckRepr(p)
 
     p = GraphemeNode(MANNER["nasal"])
     expStr = "GraphemeNode([u'm\u0325', u'm', u'\u0271', u'n\u032a', u'n\u0325', u'n', u'n\u0320', u'\u0273', u'\u0272\u0325', u'\u0272', u'\u014b\u030a', u'\u014b', u'\u0274'])"
     RunTests({'p': p},
         [ (expStr, 'str(p)') ])
+    CheckRepr(p)
 
     p = AlphaNode()
     #print p
@@ -776,6 +810,7 @@ def DoTests():
          ,((" ", False), 'p.Recognize(u" ")')
          ,(("[", False), 'p.Recognize(u"[")')
         ])
+    CheckRepr(p)
 
     p = SequenceNode([
             ManyNode(OptionalNode(GraphemeNode("a", name="grapheme"), name="optional"), name="many")
@@ -786,6 +821,7 @@ def DoTests():
     RunTests({'p': p},
         [ (u'b', 'p.Parse(u"ab")[1].FindAll("seq")[0].FindAll("grapheme")[1].Text')
         ])
+    CheckRepr(p)
 
     p = SeparatedSequenceNode(OptionalWhitespaceNode(), [
             ManyNode(OptionalNode(GraphemeNode("a", name="grapheme"), name="optional"), name="many")
@@ -796,6 +832,7 @@ def DoTests():
     RunTests({'p': p},
         [ (u'b', 'p.Parse(u" a b ")[1].FindAll("seq")[0].FindAll("grapheme")[1].Text')
         ])
+    CheckRepr(p)
 
     p = SequenceNode(name="seq", nodes=[
             SeparatedSequenceNode(WhitespaceNode(name="ws"), name="sepseq", sequenceNodes=[
@@ -823,6 +860,7 @@ def DoTests():
             , (u'*', 'res.ReplaceWith({"seq": "*"})')
             , (u'a *!f', 'res.ReplaceWith({"b": "*","c":"!"})')
         ])
+    CheckRepr(p)
 
     p = SelectNameOneOfOrNoneNode([GraphemeNode("a", name="a"), GraphemeNode("b", name="b")])
     #print p
@@ -831,6 +869,7 @@ def DoTests():
          ,(u"b", 'p.Parse(u"b")[1].GetSelectionName()')
          ,(None, 'p.Parse(u"c")[1].GetSelectionName()')
         ])
+    CheckRepr(p)
 
     p = UnderscoreNode()
     #print p
@@ -840,6 +879,7 @@ def DoTests():
          ,((" ", False), 'p.Recognize(u" ")')
          ,((" _", False), 'p.Recognize(u" _")')
         ])
+    CheckRepr(p)
 
     p = HashNode()
     #print p
@@ -849,6 +889,7 @@ def DoTests():
          ,((" ", False), 'p.Recognize(u" ")')
          ,((" #", False), 'p.Recognize(u" #")')
         ])
+    CheckRepr(p)
 
     p = ManyEndsWithSubsetNode(AlphaNode(), GraphemeNode("a"), 1)
     #print p
@@ -859,6 +900,18 @@ def DoTests():
          ,(("a", False), 'p.Recognize(u"a")')
          ,(("bbb", False), 'p.Recognize(u"bbb")')
         ])
+    CheckRepr(p)
+
+    p = GroupNode(GraphemeNode('['), ManyNode(AlphaNode()), GraphemeNode(']'))
+    #print p
+    RunTests({'p': p},
+        [ (("", True), 'p.Recognize(u"[a]")')
+         ,(("", True), 'p.Recognize(u"[ab]")')
+         ,(("b", True), 'p.Recognize(u"[b]b")')
+         ,(("b[b]b", False), 'p.Recognize(u"b[b]b")')
+         ,(("[ b]b", False), 'p.Recognize(u"[ b]b")')
+        ])
+    CheckRepr(p)
 
 if __name__ == '__main__':
     DoTests()
