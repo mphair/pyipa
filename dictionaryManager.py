@@ -8,7 +8,7 @@ from languageFamily import *
 BaseDictionaryHowTo = """
 The dictionary format is a tab-separated file in the following form per line:
 
-language<tab>word<tab>part of speech<tab># wikimedia markup of definition
+word<tab>part of speech<tab># wikimedia markup of definition
 
 Markup includes:
  * [[other word]]
@@ -24,9 +24,10 @@ In particular, check out the "just definitions" files available at
 
 http://toolserver.org/~enwikt/definitions/
 
-which were the basis of the dictionary format used here.
+which were the original basis of the dictionary format used here.
 
 You probably want enwikt-defs-latest-en.tsv.gz. If you want non-english langauges, you'll have to split them out yourself.
+convertToInternalFormat.py strips out the language. That script can be modified to split into different languages as needed.
 
 You can decompress that file using gzip from gzip.org.
 

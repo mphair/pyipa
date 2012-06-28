@@ -7,8 +7,8 @@ def ParseDictionaryFile(fileName):
     splitlines = [[l.strip() for l in line.split("\t")] for line in f.readlines()]
     d = {}
     for line in splitlines:
-        if not(d.has_key(line[1])): d[line[1]] = []
-        d[line[1]].append(line[2:])    
+        if not(d.has_key(line[0])): d[line[0]] = []
+        d[line[0]].append(line[1:])
     return d
 
 class Language:
