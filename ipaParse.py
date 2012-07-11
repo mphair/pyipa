@@ -96,6 +96,7 @@ def PopGrapheme(s):
     if len(s) == 0: return None, s
     elif len(s) == 1: return s, ''
     elif CombiningCategory(s[0]):
+        print s
         raise Exception("Should not have a combining as first codepoint in grapheme")
     else:
         for ii in range(len(s[1:])):
@@ -103,10 +104,17 @@ def PopGrapheme(s):
                 return s[:ii+1], s[ii+1:]
         return s, ''
 
-def GraphemeSplit(s):
+def GraphemeSplit(s, errorsTo=None):
     graphemeL = []
     while len(s) > 0:
-        g, s = PopGrapheme(s)
+        try:
+            g, s = PopGrapheme(s)
+        except:
+            if errorsTo != None:
+                errorsTo.add(s)
+                return []
+            else:
+                raise
         if g == None: break
         graphemeL.append(g)
     return graphemeL

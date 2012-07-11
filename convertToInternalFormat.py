@@ -27,8 +27,9 @@ which is just the same format without the language column.
 So at this point, this script just strips out the first column
 """
 import sys
-inFile = open(sys.argv[1])
-outFile = open(sys.argv[2], "w")
+import codecs
+inFile = codecs.open(sys.argv[1], encoding="utf-8")
+outFile = codecs.open(sys.argv[2], "w", encoding="utf-8")
 
 for line in inFile:
-    outFile.write("\t".join(line.split("\t")[1:]))
+    outFile.write(u"\t".join(line.split(u"\t")[1:]))

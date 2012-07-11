@@ -42,7 +42,7 @@ pyipa
                     West Germanic
                         Anglo-Frisian
                             Anglic
-                                English   <-- dictionary file
+                                English.dictionary   <-- dictionary file for English
 
 (see http://en.wikipedia.org/wiki/English_language for the above accepted family tree of English)
 """
