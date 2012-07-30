@@ -15,7 +15,7 @@ SHOW_PASSES = False
 MANNER = {"nasal": u'm̥mɱn̪n̥nn̠ɳɲ̥ɲŋ̊ŋɴ',
            "plosive": u'pbp̪b̪t̪d̪tdʈɖcɟkɡqɢʡʔ',
            "fricative": u'ɸβfvθðszʃʒʂʐçʝxɣχʁħʕʜʢhɦ',
-           "approximant": u'ʋɹɻjɰʁʕʢhɦ',
+           "approximant": u'ʋɹɻjɰʁʕʢhɦw',
            "trill": u'ʙrʀя', # does not include retroflex because of unsupported glyph stuff,
            "flap_or_tap": u'ⱱ̟ⱱɾɽɢ̆ʡ̯',
            "lateral_fric": u'ɬɮɭ˔̊ʎ̥˔ʟ̝̊ʟ̝',
@@ -27,6 +27,9 @@ PLACE = {
     "labial": {
         "bilabial": u'm̥pɸmbβⱱ̟',
         "labiodental": u'p̪fɱb̪vʋⱱ'
+    },
+    "labio-velar": {
+        "laboio-velar": u'w'
     },
     "coronal": {
         "dental": u'n̪t̪d̪θð',
@@ -59,7 +62,7 @@ for major in PLACE.keys():
 
 VOICING = {
     "unvoiced": u'm̥pɸp̪ft̪θn̥tsɬʃʈʂɭ˔̊ɲ̥cçʎ̥˔ŋ̊kxʟ̝̊qχħʡʜʔh',
-    "voiced": u'mbβʙⱱ̟ɱb̪vʋⱱn̪d̪ðndzɹrɾɮlɺn̠ʒɳɖʐɻɽɭɺ̠ɲɟʝjʎʎ̯ŋɡɣɰʟ̝ʟɴɢʁʀɢ̆ʕʢяʡ̯ɦ'
+    "voiced": u'mbβʙⱱ̟ɱb̪vʋⱱn̪d̪ðndzɹrɾɮlɺn̠ʒɳɖʐɻɽɭɺ̠ɲɟʝjʎʎ̯ŋɡɣɰʟ̝ʟɴɢʁʀɢ̆ʕʢяʡ̯ɦw'
 }
 
 
@@ -377,6 +380,7 @@ class OptionalNode (ParserNode):
 
 class ManyNode (ParserNode):
     def __init__(self, node, name=None):
+        if not(isinstance(node, ParserNode)): raise Exception("ManyNode expects a node: " + str(node))
         ParserNode.__init__(self, name)
         self.Node = node
         self.ParsedNodes = []
@@ -918,6 +922,15 @@ def DoTests():
          ,(("b", True), 'p.Recognize(u"[b]b")')
          ,(("b[b]b", False), 'p.Recognize(u"b[b]b")')
          ,(("[ b]b", False), 'p.Recognize(u"[ b]b")')
+        ])
+    CheckRepr(p)
+
+    p = SequenceNode([GroupNode(GraphemeNode('{'),ManyNode(AlphaNode(), name="name"),GraphemeNode('}')), UnderscoreNode()])
+    #print p
+    RunTests({'p': p},
+        [ (("{vowel}", False), 'p.Recognize(u"{vowel}")')
+         ,(("", True), 'p.Recognize(u"{vowel}_")')
+         ,(u"vowel", 'p.Parse(u"{vowel}_")[1].FindAll("name")[0].Text')
         ])
     CheckRepr(p)
 

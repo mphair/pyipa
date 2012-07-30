@@ -5,6 +5,7 @@
 
 from ipaParse import *
 WHITESPACE_INCLUDES_NEWLINES = False # turn off newlines as wspace in ipaParse
+STOP_ON_EXCEPTION = False
 
 TESTS = [
 #################################################
@@ -30,6 +31,20 @@ TESTS = [
      , [(u"abse abs see seas"
      , u"abe abs ee eas")]]
 
+#################################################
+    ,[ u's > /{vowel}_' # s removed after vowel
+     , [(u"abse as see sase"
+     , u"abse a see sae")]]
+
+    ,[ u's > /_{vowel}' # s removed before vowel
+     , [(u"abse as see sase"
+     , u"abe as ee ae")]]
+
+    ,[ u's > /{vowel}_{vowel}' # intervolic s removed
+     , [(u"abse as see sase"
+     , u"abse as see sae")]]
+# todo:
+# (done) 1. parse {vowel} (list of names to be passed in)
 
 #################################################
     ,[u'[sz] > t /' #alveolar fricatives
@@ -61,8 +76,35 @@ FROM_NODE_NAME = "from"
 CONDITION_NODE_NAME = "condition"
 END_OF_WORD_CONDITION = "endOfWord"
 START_OF_WORD_CONDITION = "startOfWord"
+AFTER_NAMED_CONDITION = "afterNamed"
+BEFORE_NAMED_CONDITION = "beforeNamed"
+BETWEEN_NAMED_CONDITION = "betweenNamed"
+SPECIAL_NAME = "specialName"
 
-def ParseSoundChangeRule(ruleString):
+def ParseSoundChangeRule(ruleString, specialNames=None):
+    conditions=[
+          SequenceNode([UnderscoreNode(), HashNode()], name=END_OF_WORD_CONDITION)
+        , SequenceNode([HashNode(), UnderscoreNode()], name=START_OF_WORD_CONDITION)
+    ]
+    if specialNames != None:
+        conditions.extend([
+            # {}_{} needs to go first, because it is a superset of the other two,
+            #  the others will get recognized but not eat enough of the condition
+            SequenceNode([
+                GroupNode(GraphemeNode('{'),ManyNode(AlphaNode(),name=SPECIAL_NAME),GraphemeNode('}'))
+                , UnderscoreNode()
+                , GroupNode(GraphemeNode('{'),ManyNode(AlphaNode(),name=SPECIAL_NAME),GraphemeNode('}'))]
+                , name=BETWEEN_NAMED_CONDITION)
+            , SequenceNode([
+                GroupNode(GraphemeNode('{'),ManyNode(AlphaNode(),name=SPECIAL_NAME),GraphemeNode('}'))
+                , UnderscoreNode()]
+                , name=AFTER_NAMED_CONDITION)
+            , SequenceNode([
+                UnderscoreNode()
+                , GroupNode(GraphemeNode('{'),ManyNode(AlphaNode(),name=SPECIAL_NAME),GraphemeNode('}'))]
+                , name=BEFORE_NAMED_CONDITION)
+        ])
+
     return SeparatedSequenceNode(
                 separatorNode = OptionalWhitespaceNode()
                 , initialSep = True
@@ -76,15 +118,12 @@ def ParseSoundChangeRule(ruleString):
                     , GraphemeNode('>')
                     , OptionalNode(AlphaNode(name=TO_NODE_NAME))
                     , GraphemeNode('/')
-                    , SelectNameOneOfOrNoneNode(name=CONDITION_NODE_NAME,
-                        namedOptionNodes=[
-                              SequenceNode([UnderscoreNode(), HashNode()], name=END_OF_WORD_CONDITION)
-                            , SequenceNode([HashNode(), UnderscoreNode()], name=START_OF_WORD_CONDITION)])
+                    , SelectNameOneOfOrNoneNode(name=CONDITION_NODE_NAME, namedOptionNodes=conditions)
                     , EndNode()
                 ]
         ).Parse(ruleString)
 
-def CreateParserFromSoundChange(fromPatterns, condition):
+def CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialNames=None):
     fromNodes = []
     for fromPattern in fromPatterns:
         L = GraphemeSplit(fromPattern)
@@ -127,13 +166,42 @@ def CreateParserFromSoundChange(fromPatterns, condition):
                 ])
             )
         ])
+    elif condition == BETWEEN_NAMED_CONDITION:
+        return ManyNode(
+            OrNode([
+                SequenceNode([
+                    GraphemeNode(specialNames[conditionArgs[0]])
+                    , GraphemeNode(fromPattern, name=FROM_NODE_NAME)
+                    , GraphemeNode(specialNames[conditionArgs[1]])])
+                , AlphaNode()
+                , OrNode([EndNode(), WhitespaceNode()])
+            ])
+        )
+    elif condition == AFTER_NAMED_CONDITION:
+        return ManyNode(
+            OrNode([
+                SequenceNode([GraphemeNode(specialNames[conditionArgs[0]]), GraphemeNode(fromPattern, name=FROM_NODE_NAME)])
+                , AlphaNode()
+                , OrNode([EndNode(), WhitespaceNode()])
+            ])
+        )
+    elif condition == BEFORE_NAMED_CONDITION:
+        return ManyNode(
+            OrNode([
+                SequenceNode([GraphemeNode(fromPattern, name=FROM_NODE_NAME), GraphemeNode(specialNames[conditionArgs[0]])])
+                , AlphaNode()
+                , OrNode([EndNode(), WhitespaceNode()])
+            ])
+        )
+
+SPECIAL_NAME = "specialName"
 
 def DoReplacement(replacerPair, text):
     parser, toPattern = replacerPair
     s1, res = parser.Parse(text)
     return res.ReplaceWith({FROM_NODE_NAME: toPattern})
 
-def CreateReplacerPair(res):
+def CreateReplacerPair(res, specialNames=None):
     fromPatterns = [n.Text for n in res.FindAll(FROM_NODE_NAME)]
     toSet = res.FindAll(TO_NODE_NAME)
     if len(toSet) == 0:
@@ -141,20 +209,25 @@ def CreateReplacerPair(res):
     else:
         toPattern = toSet[0].Text
     conditionNodeSet = res.FindAll(CONDITION_NODE_NAME)
+    conditionArgs = None
     if len(conditionNodeSet) == 0:
         condition = None
     else:
         condition = conditionNodeSet[0].GetSelectionName()
-    return CreateParserFromSoundChange(fromPatterns, condition), toPattern
+        if condition in (AFTER_NAMED_CONDITION, BEFORE_NAMED_CONDITION, BETWEEN_NAMED_CONDITION):
+            specials = conditionNodeSet[0].FindAll(SPECIAL_NAME)
+            conditionArgs = [special.Text for special in specials]
+    return CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialNames), toPattern
 
 if __name__ == '__main__':
+    specialNames={"vowel":["a","e","i","o","u"]} # these vowels just for testing, get full list from ipaParse
     for test in TESTS:
         rule, L = test
-        s1, res = ParseSoundChangeRule(rule)
+        s1, res = ParseSoundChangeRule(rule, specialNames=specialNames)
         if res == None:
             print rule, ": DID NOT PARSE"
             continue
-        rp = CreateReplacerPair(res)
+        rp = CreateReplacerPair(res, specialNames=specialNames)
         for entry in L:
             word,expected = entry
             try:
@@ -164,5 +237,8 @@ if __name__ == '__main__':
                 else:
                     print rule, ": SUCCESS"
             except Exception as e:
-                print rule, entry, ": EXCEPTION", e
+                if STOP_ON_EXCEPTION:
+                    raise
+                else:
+                    print rule, entry, ": EXCEPTION", e
 
