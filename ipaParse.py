@@ -13,7 +13,7 @@ WHITESPACE_INCLUDES_NEWLINES = True
 SHOW_PASSES = False
 
 MANNER = {"nasal": u'm̥mɱn̪n̥nn̠ɳɲ̥ɲŋ̊ŋɴ',
-           "plosive": u'pbp̪b̪t̪d̪tdʈɖcɟkɡqɢʡʔ',
+           "plosive": u'pbp̪b̪t̪d̪tdʈɖcɟkɡgqɢʡʔ',
            "fricative": u'ɸβfvθðszʃʒʂʐçʝxɣχʁħʕʜʢhɦ',
            "approximant": u'ʋɹɻjɰʁʕʢhɦw',
            "trill": u'ʙrʀя', # does not include retroflex because of unsupported glyph stuff,
@@ -39,7 +39,7 @@ PLACE = {
     },
     "dorsal": {
         "palatal": u'ɲ̥ɲcɟçʝjʎ̥˔ʎʎ̯',
-        "velar": u'ŋ̊ŋkɡxɣɰʟ̝̊ʟ̝ʟ',
+        "velar": u'ŋ̊ŋkɡgxɣɰʟ̝̊ʟ̝ʟ',
         "uvular": u'ɴqɢχʁʀɢ̆'
     },
     "radical": {
@@ -62,7 +62,7 @@ for major in PLACE.keys():
 
 VOICING = {
     "unvoiced": u'm̥pɸp̪ft̪θn̥tsɬʃʈʂɭ˔̊ɲ̥cçʎ̥˔ŋ̊kxʟ̝̊qχħʡʜʔh',
-    "voiced": u'mbβʙⱱ̟ɱb̪vʋⱱn̪d̪ðndzɹrɾɮlɺn̠ʒɳɖʐɻɽɭɺ̠ɲɟʝjʎʎ̯ŋɡɣɰʟ̝ʟɴɢʁʀɢ̆ʕʢяʡ̯ɦw'
+    "voiced": u'mbβʙⱱ̟ɱb̪vʋⱱn̪d̪ðndzɹrɾɮlɺn̠ʒɳɖʐɻɽɭɺ̠ɲɟʝjʎʎ̯ŋɡgɣɰʟ̝ʟɴɢʁʀɢ̆ʕʢяʡ̯ɦw'
 }
 
 
