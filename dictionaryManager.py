@@ -77,3 +77,8 @@ if __name__ == '__main__':
         print BaseDictionaryHowTo
     else:
         print allFamilies.FamilyTree("*", 0)
+
+    import soundChange
+    sc = soundChange.SoundChange([u"\u0283 > st / _{vowel}"], {"vowel": ipaParse.ALL_VOWELS})
+    pnw = allFamilies["ProtoNorthwestern"]
+    fakeNW = Language.FromSoundChange(pnw, "fake northwestern", sc.Apply)

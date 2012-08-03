@@ -21,25 +21,52 @@ def DumpAlphabetToFile(alphabet, fileName):
     f = codecs.open(fileName, "w", encoding="utf-8")
     f.writelines([l+"\n" for l in alphabet])
 
+def AddToAlphabetIfNeeded(existingAlphabet, extractedAlphabet):
+    a_set = set(existingAlphabet)
+    result = list(existingAlphabet)
+    for g in extractedAlphabet:
+        if not(g in a_set):
+            a_set.add(g)
+            result.append(g)
+    return result
+
+def ExtractAlphabet(vocab, corpus):
+    graphemes = set()
+    suspectWords = set()
+    for word in vocab:
+        [graphemes.add(g) for g in ipaParse.GraphemeSplit(word, errorsTo=suspectWords)]
+    for line in corpus:
+        [graphemes.add(g) for g in ipaParse.GraphemeSplit(line, errorsTo=suspectWords)]
+    return (list(graphemes), suspectWords)
+
 class Language:
-    def __init__(self, name, vocabulary, alphabet=None, suspectWords=None):
+    def __init__(self, name, vocabulary, alphabet=None, suspectWords=None, corpus=None):
+        if not(isinstance(vocabulary, dict)): raise Exception("Language expects a dict for vocabulary, got a: " + str(type(vocabulary)))
         self.Name = name
         self.Vocabulary = vocabulary
         self.Graphemes = list(alphabet) if alphabet != None else list()
         self.SuspectWords = set(suspectWords) if suspectWords != None else set()
+        self.Corpus = list(corpus) if corpus != None else list()
     def __repr__(self):
         alphabet = ", " + str(len(self.Graphemes)) + " graphemes" if len(self.Graphemes) > 0 else ""
         return self.Name + " (" + str(len(self.Vocabulary.keys())) + " words" + alphabet + ")"
     def FamilyTree(self, indentStr, indentAmount):
         return indentStr*indentAmount + str(self) + "\n"
     def ExtractAlphabet(self):
-        graphemes = set()
-        for word in self.Vocabulary:
-            [graphemes.add(g) for g in ipaParse.GraphemeSplit(word, errorsTo=self.SuspectWords)]
-        self.Graphemes = list(graphemes)
+        graphemes, suspectWords = ExtractAlphabet(self.Vocabulary, self.Corpus)
+        self.Graphemes = graphemes
+        for word in suspectWords:
+            self.SuspectWords.add(word)
         return self.Graphemes
     def SetAlphabet(self, alphabet):
         self.Graphemes = list(alphabet)
+    @staticmethod
+    def FromSoundChange(languageIn, newName, soundChangeFunc):
+        vocab = {soundChangeFunc(word)[-1]:entry for (word,entry) in languageIn.Vocabulary.items()}
+        corpus = [soundChangeFunc(s)[-1] for s in languageIn.Corpus]
+        extractedAlphabet, suspectWords = ExtractAlphabet(vocab, corpus)
+        alphabet = AddToAlphabetIfNeeded([soundChangeFunc(letter)[-1] for letter in languageIn.Graphemes], extractedAlphabet)
+        return Language(newName, vocab, alphabet, suspectWords=languageIn.SuspectWords.union(suspectWords), corpus=corpus)
 
 class LanguageFamily:
     def __init__(self, name):
@@ -71,6 +98,8 @@ class LanguageFamily:
                     self.Languages[langName].SetAlphabet(alphabet)
                 else:
                     unboundAlphabets[langName] = alphabet
+    def __getitem__(self, key):
+        return self.AllChildLanguages()[key]
     def AllChildLanguages(self):
         result = dict(self.Languages)
         for family in self.SubFamilies:

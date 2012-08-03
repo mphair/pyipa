@@ -21,6 +21,10 @@ TESTS = [
      , [(u"abse abs see seas"
      , u"abse abs ee eas")]]
 
+    ,[u'b > pp /' # b goes to pp
+    , [(u"a b c d"
+    , u"a pp c d")]]
+
 #################################################
 ### Not going to do this style of thing, currently.
 ###   Can be replicated by u"se > e /"
@@ -116,7 +120,7 @@ def ParseSoundChangeRule(ruleString, specialNames=None):
                        ,GroupNode(GraphemeNode('['),ManyNode(AlphaNode(name=FROM_NODE_NAME)),GraphemeNode(']')) # inside [ ], each grapheme is an option
                     ])
                     , GraphemeNode('>')
-                    , OptionalNode(AlphaNode(name=TO_NODE_NAME))
+                    , OptionalNode(ManyNode(AlphaNode(), name=TO_NODE_NAME))
                     , GraphemeNode('/')
                     , SelectNameOneOfOrNoneNode(name=CONDITION_NODE_NAME, namedOptionNodes=conditions)
                     , EndNode()
@@ -218,6 +222,20 @@ def CreateReplacerPair(res, specialNames=None):
             specials = conditionNodeSet[0].FindAll(SPECIAL_NAME)
             conditionArgs = [special.Text for special in specials]
     return CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialNames), toPattern
+
+class SoundChange:
+    def __init__(self, ruleList, specialNames=None):
+        parsedRules = [(ParseSoundChangeRule(ruleLine, specialNames), ruleLine) for ruleLine in ruleList]
+        replacerPairs = [(CreateReplacerPair(pscr[1], specialNames),ruleLine) for (pscr,ruleLine) in parsedRules if pscr != None]
+        # this needs to be ordered, because order of application matters
+        #  if we want to change this to another datastructure, self.Rules
+        #  should probably have a list
+        self.Rules = [(rp,ruleLine) for (rp,ruleLine) in replacerPairs if rp != None]
+    def Apply(self, text):
+        results = [text]
+        for (rp,ruleLine) in self.Rules:
+            results.append(DoReplacement(rp, results[-1]))
+        return results
 
 if __name__ == '__main__':
     specialNames={"vowel":["a","e","i","o","u"]} # these vowels just for testing, get full list from ipaParse
