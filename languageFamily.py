@@ -100,6 +100,8 @@ class LanguageFamily:
                     unboundAlphabets[langName] = alphabet
     def __getitem__(self, key):
         return self.AllChildLanguages()[key]
+    def __contains__(self, key):
+        return key in self.AllChildLanguages()
     def AllChildLanguages(self):
         result = dict(self.Languages)
         for family in self.SubFamilies:
