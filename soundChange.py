@@ -223,6 +223,15 @@ def CreateReplacerPair(res, specialNames=None):
             conditionArgs = [special.Text for special in specials]
     return CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialNames), toPattern
 
+def CombineListOfDicts(L):
+    items = []
+    for d in L: items.extend(d.items())
+    return dict(items)
+def CombineListOfLists(L):
+    items = []
+    for l in L: items.extend(l)
+    return items
+
 class SoundChange:
     def __init__(self, ruleList, specialNames=None):
         parsedRules = [(ParseSoundChangeRule(ruleLine, specialNames), ruleLine) for ruleLine in ruleList]
@@ -231,11 +240,28 @@ class SoundChange:
         #  if we want to change this to another datastructure, self.Rules
         #  should probably have a list
         self.Rules = [(rp,ruleLine) for (rp,ruleLine) in replacerPairs if rp != None]
+        self.SpecialNames = specialNames
     def Apply(self, text):
         results = [text]
         for (rp,ruleLine) in self.Rules:
             results.append(DoReplacement(rp, results[-1]))
         return results
+    def __repr__(self):
+        return "SoundChange({0}, {1})".format(self.OrigRules(), self.SpecialNames)
+    def OrigRules(self):
+        return [ruleLine for (rp,ruleLine) in self.Rules]
+    def Save(self, name):
+        import codecs
+        outFile = codecs.open(name, "w", encoding="utf-8")
+        for rule in self.OrigRules():
+            outFile.write(rule + "\n")
+        outFile.close()
+
+    @staticmethod
+    def FromSoundChangeList(sc_list):
+        ruleList = CombineListOfLists([sc.OrigRules() for sc in sc_list])
+        specialNames = CombineListOfDicts([sc.SpecialNames for sc in sc_list])
+        return SoundChange(ruleList, specialNames)
 
 if __name__ == '__main__':
     specialNames={"vowel":["a","e","i","o","u"]} # these vowels just for testing, get full list from ipaParse
