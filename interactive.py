@@ -11,8 +11,8 @@ class Interactive(cmd.Cmd):
         self.prompt = "[] > "
         print "Loading families..."
         self.AllFamilies = LoadFromDefault()
-        self.AllChildLanguages = self.AllFamilies.AllChildLanguages()
-        if len(self.AllChildLanguages.keys()) == 0:
+        allChildLanguages = self.AllFamilies.AllChildLanguages()
+        if len(allChildLanguages.keys()) == 0:
             print "*"*80
             print "You don't seem to have any languages"
             print "*"*80
@@ -22,6 +22,8 @@ class Interactive(cmd.Cmd):
         self.CurrentLangName = ""
     def emptyline(self):
         pass
+    def do_fams(self, line):
+        print self.AllFamilies.FamilyTree("*", 0)
     def do_addsc(self, line):
         line = line.decode('raw_unicode_escape')
         self.LoadSoundChange(line)
@@ -57,8 +59,8 @@ class Interactive(cmd.Cmd):
         if destName in self.AllFamilies:
             print destName, "already exists."
         else:
-            sc = sounceChange.SoundChange.FromSoundChangeList(self.SoundChanges)
-            self.AllFamilies[destName] = Language.FromSoundChange(source, destName, sc)
+            sc = soundChange.SoundChange.FromSoundChangeList(self.SoundChanges)
+            self.AllFamilies[destName] = Language.FromSoundChange(source, destName, sc.Apply)
             print destName, "added."
     def getChangesAndSame(self, source):
         sc = soundChange.SoundChange.FromSoundChangeList(self.SoundChanges)
@@ -125,6 +127,14 @@ class Interactive(cmd.Cmd):
             print line, "is not a numerical index. Use enum to find an index."
         except IndexError:
             print line, "is out of range. Use enum to find an index."
+    def do_picklang(self, line):
+        try:
+            index = int(line) - 1
+            self.SetCurLang(self.LastList[index])
+        except ValueError:
+            print line, "is not a numerical index. Use enum to find an index."
+        except IndexError:
+            print line, "is out of range. Use enum to find an index."
 
     def do_decode(self, line):
         if not(hasattr(self, "CurrentItem")):
@@ -144,14 +154,25 @@ class Interactive(cmd.Cmd):
             else:
                 print g,": currently unknown."
 
+    def SetCurLang(self, langName):
+        lang = self.AllFamilies[langName]
+        print "selected:", lang
+        self.CurrentLangName = langName
+        self.prompt = langName + " > "
+
     def do_lang(self, line):
         lang = line.strip()
         if lang in self.AllFamilies:
-            print "selected:", self.AllFamilies[lang]
-            self.CurrentLangName = lang
-            self.prompt = lang + " > "
+            self.SetCurLang(lang)
         else:
             print lang, "not found."
+    def do_listlang(self, line):
+        allChildLanguages = self.AllFamilies.AllChildLanguages()
+        self.LastList = []
+        for langName in allChildLanguages.keys():
+            lang = allChildLanguages[langName]
+            print lang
+            self.LastList.append(lang.Name)
 
     def do_lookup(self, line):
         if len(self.CurrentLangName) == 0:
@@ -164,9 +185,16 @@ class Interactive(cmd.Cmd):
         else:
             print self.CurrentItem,"not in",lang
 
+    def do_savecurlang(self, line):
+        if len(self.CurrentLangName) == 0:
+            print "please select a current language with lang"
+        lang = self.AllFamilies[self.CurrentLangName]
+        lang.Save("")
+        print "saved."
+
     def do_quit(self, line):
         return True
 
-
 if __name__ == '__main__':
-    Interactive().cmdloop()
+    interact = Interactive()
+    interact.cmdloop()

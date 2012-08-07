@@ -14,6 +14,12 @@ def ParseDictionaryFile(fileName):
         if not(d.has_key(line[0])): d[line[0]] = []
         d[line[0]].append(line[1:])
     return d
+def SaveDictionaryToFile(d, fileName):
+    f = codecs.open(fileName, "w", encoding="utf-8")
+    for word in d.keys():
+        for definition in d[word]:
+            f.write('\t'.join([word]+definition)+"\n")
+
 def ParseAlphabetFile(fileName):
     lines = [line.strip() for line in codecs.open(fileName, encoding="utf-8").readlines()]
     return [line for line in lines if line != ""]
@@ -60,6 +66,12 @@ class Language:
         return self.Graphemes
     def SetAlphabet(self, alphabet):
         self.Graphemes = list(alphabet)
+    def Save(self, path):
+        import os
+        target = os.path.join(path, self.Name)
+        SaveDictionaryToFile(self.Vocabulary, target + DICTIONARY_FILE_EXT)
+        DumpAlphabetToFile(self.Graphemes, target + ALPHABET_FILE_EXT)
+
     @staticmethod
     def FromSoundChange(languageIn, newName, soundChangeFunc):
         vocab = {soundChangeFunc(word)[-1]:entry for (word,entry) in languageIn.Vocabulary.items()}
@@ -100,6 +112,9 @@ class LanguageFamily:
                     unboundAlphabets[langName] = alphabet
     def __getitem__(self, key):
         return self.AllChildLanguages()[key]
+    def __setitem__(self, key, value):
+        # don't know where else to add the language at this point, so stick at root
+        self.Languages[key] = value
     def __contains__(self, key):
         return key in self.AllChildLanguages()
     def AllChildLanguages(self):
