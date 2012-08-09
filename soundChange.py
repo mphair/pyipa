@@ -203,9 +203,14 @@ SPECIAL_NAME = "specialName"
 def DoReplacement(replacerPair, text):
     parser, toPattern = replacerPair
     s1, res = parser.Parse(text)
+    if res == None:
+        print "Failed to parse", text
+        print "Was trying to replace with", toPattern
+        print "tag:", parser.Tag
+        raise Exception("failed to parse")
     return res.ReplaceWith({FROM_NODE_NAME: toPattern})
 
-def CreateReplacerPair(res, specialNames=None):
+def CreateReplacerPair(res, specialNames=None, ruleLine=None):
     fromPatterns = [n.Text for n in res.FindAll(FROM_NODE_NAME)]
     toSet = res.FindAll(TO_NODE_NAME)
     if len(toSet) == 0:
@@ -221,7 +226,10 @@ def CreateReplacerPair(res, specialNames=None):
         if condition in (AFTER_NAMED_CONDITION, BEFORE_NAMED_CONDITION, BETWEEN_NAMED_CONDITION):
             specials = conditionNodeSet[0].FindAll(SPECIAL_NAME)
             conditionArgs = [special.Text for special in specials]
-    return CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialNames), toPattern
+
+    p = CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialNames)
+    p.Tag = ruleLine
+    return p, toPattern
 
 def CombineListOfDicts(L):
     items = []
@@ -235,7 +243,7 @@ def CombineListOfLists(L):
 class SoundChange:
     def __init__(self, ruleList, specialNames=None):
         parsedRules = [(ParseSoundChangeRule(ruleLine, specialNames), ruleLine) for ruleLine in ruleList]
-        replacerPairs = [(CreateReplacerPair(pscr[1], specialNames),ruleLine) for (pscr,ruleLine) in parsedRules if pscr != None]
+        replacerPairs = [(CreateReplacerPair(pscr[1], specialNames, ruleLine),ruleLine) for (pscr,ruleLine) in parsedRules if pscr != None]
         # this needs to be ordered, because order of application matters
         #  if we want to change this to another datastructure, self.Rules
         #  should probably have a list

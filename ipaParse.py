@@ -130,8 +130,8 @@ ConsonantData = {}
 for c in ALL_CONSONANTS:
     ConsonantData[c] = {}
 VowelData = {}
-for c in ALL_VOWELS:
-    VowelData[c] = {}
+for v in ALL_VOWELS:
+    VowelData[v] = {}
 
 def FillData(byGrapheme, byType, typeType):
     for t in byType.keys():
@@ -151,6 +151,7 @@ FillData(VowelData, ROUNDEDNESS, 'roundedness')
 class ParserNode:
     def __init__(self, name=None):
         self.Name = name
+        self.Tag = None
     def Recognize(self, s0):
         s1, res = self.Parse(s0)
         return s1, res != None
