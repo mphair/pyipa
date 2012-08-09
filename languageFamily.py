@@ -3,6 +3,7 @@
 ## Classes to contain and maintain data about language families and the languages therein
 DICTIONARY_FILE_EXT = ".dictionary"
 ALPHABET_FILE_EXT = ".alphabet"
+CORPUS_FILE_EXT = ".corpus"
 
 import ipaParse
 import codecs
@@ -27,6 +28,12 @@ def DumpAlphabetToFile(alphabet, fileName):
     f = codecs.open(fileName, "w", encoding="utf-8")
     f.writelines([l+"\n" for l in alphabet])
 
+def ParseCorpusFile(fileName):
+    return [[chunk.strip() for chunk in line.strip().split("=")] for line in codecs.open(fileName, encoding="utf-8").readlines()]
+def DumpCorpusToFile(corpus, fileName):
+    f = codecs.open(fileName, "w", encoding="utf-8")
+    f.writelines([" = ".join(lineChunks)+"\n" for lineChunks in corpus])
+
 def AddToAlphabetIfNeeded(existingAlphabet, extractedAlphabet):
     a_set = set(existingAlphabet)
     result = list(existingAlphabet)
@@ -42,7 +49,7 @@ def ExtractAlphabet(vocab, corpus):
     for word in vocab:
         [graphemes.add(g) for g in ipaParse.GraphemeSplit(word, errorsTo=suspectWords)]
     for line in corpus:
-        [graphemes.add(g) for g in ipaParse.GraphemeSplit(line, errorsTo=suspectWords)]
+        [graphemes.add(g) for g in ipaParse.GraphemeSplit(line[0], errorsTo=suspectWords)]
     return (list(graphemes), suspectWords)
 
 class Language:
@@ -55,7 +62,8 @@ class Language:
         self.Corpus = list(corpus) if corpus != None else list()
     def __repr__(self):
         alphabet = ", " + str(len(self.Graphemes)) + " graphemes" if len(self.Graphemes) > 0 else ""
-        return self.Name + " (" + str(len(self.Vocabulary.keys())) + " words" + alphabet + ")"
+        corpus = ", " + str(len(self.Corpus)) + " corpus entries" if len(self.Corpus) > 0 else ""
+        return self.Name + " (" + str(len(self.Vocabulary.keys())) + " words" + alphabet + corpus + ")"
     def FamilyTree(self, indentStr, indentAmount):
         return indentStr*indentAmount + str(self) + "\n"
     def ExtractAlphabet(self):
@@ -70,12 +78,13 @@ class Language:
         import os
         target = os.path.join(path, self.Name)
         SaveDictionaryToFile(self.Vocabulary, target + DICTIONARY_FILE_EXT)
-        DumpAlphabetToFile(self.Graphemes, target + ALPHABET_FILE_EXT)
+        if len(self.Graphemes) > 0: DumpAlphabetToFile(self.Graphemes, target + ALPHABET_FILE_EXT)
+        if len(self.Corpus) > 0: DumpCorpusToFile(self.Corpus, target + CORPUS_FILE_EXT)
 
     @staticmethod
     def FromSoundChange(languageIn, newName, soundChangeFunc):
         vocab = {soundChangeFunc(word)[-1]:entry for (word,entry) in languageIn.Vocabulary.items()}
-        corpus = [soundChangeFunc(s)[-1] for s in languageIn.Corpus]
+        corpus = [[soundChangeFunc(s[0])[-1]]+s[1:] for s in languageIn.Corpus]
         extractedAlphabet, suspectWords = ExtractAlphabet(vocab, corpus)
         alphabet = AddToAlphabetIfNeeded([soundChangeFunc(letter)[-1] for letter in languageIn.Graphemes], extractedAlphabet)
         return Language(newName, vocab, alphabet, suspectWords=languageIn.SuspectWords.union(suspectWords), corpus=corpus)
@@ -90,6 +99,7 @@ class LanguageFamily:
     def LoadFromPath(self, path):
         import os
         unboundAlphabets = {}
+        unboundCorpuses = {}
         for entry in os.listdir(path):
             fullPath = os.path.join(path, entry)
             if os.path.isdir(fullPath):
@@ -101,7 +111,8 @@ class LanguageFamily:
                 self.Languages[langName] = Language(
                     langName,
                     ParseDictionaryFile(fullPath),
-                    alphabet = (unboundAlphabets[langName] if langName in unboundAlphabets else None)
+                    alphabet = (unboundAlphabets[langName] if langName in unboundAlphabets else None),
+                    corpus = (unboundCorpuses[langName] if langName in unboundCorpuses else None)
                 )
             elif entry.lower().endswith(ALPHABET_FILE_EXT):
                 langName = entry[0:-len(ALPHABET_FILE_EXT)]
@@ -110,6 +121,17 @@ class LanguageFamily:
                     self.Languages[langName].SetAlphabet(alphabet)
                 else:
                     unboundAlphabets[langName] = alphabet
+            elif entry.lower().endswith(CORPUS_FILE_EXT):
+                langName = entry[0:-len(CORPUS_FILE_EXT)]
+                corpus = ParseCorpusFile(fullPath)
+                if langName in self.Languages:
+                    print "setting corpus"
+                    self.Languages[langName].SetCorpus(corpus)
+                else:
+                    print "unbound corpus"
+                    unboundCorpuses[langName] = corpus
+            else:
+                print "unknown filetype:", entry
     def __getitem__(self, key):
         return self.AllChildLanguages()[key]
     def __setitem__(self, key, value):
