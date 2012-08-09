@@ -74,31 +74,36 @@ class Interactive(cmd.Cmd):
                 changes.append(word + u"->" + result)
         return changes, same
 
-    def do_showchanges(self, line):
+    def LangFromLineOrCurrent(self, line):
         args = line.split(" ")
         lang = args[0].strip()
         if len(lang) == 0 and len(self.CurrentLangName) > 0:
             lang = self.CurrentLangName
-
         if lang not in self.AllFamilies:
             print lang, "does not exist."
+            return None
         else:
-            source = self.AllFamilies[lang]
+            return self.AllFamilies[lang]
+
+    def do_listcorpus(self, line):
+        source = self.LangFromLineOrCurrent(line)
+        if source != None:
+            self.LastList = []
+            for line in source.Corpus:
+                print " = ".join(line)
+                self.LastList.append(line[0])
+
+    def do_showchanges(self, line):
+        source = self.LangFromLineOrCurrent(line)
+        if source != None:
             self.LastList = []
             for word in self.getChangesAndSame(source)[0]:
                 print word
                 self.LastList.append(word)
 
     def do_showsame(self, line):
-        args = line.split(" ")
-        lang = args[0].strip()
-        if len(lang) == 0 and len(self.CurrentLangName) > 0:
-            lang = self.CurrentLangName
-
-        if lang not in self.AllFamilies:
-            print lang, "does not exist."
-        else:
-            source = self.AllFamilies[lang]
+        source = self.LangFromLineOrCurrent(line)
+        if source != None:
             self.LastList = []
             for word in self.getChangesAndSame(source)[1]:
                 print word
@@ -145,6 +150,14 @@ class Interactive(cmd.Cmd):
 
     def do_showchar(self, line):
         line = line.decode('raw_unicode_escape')
+        if len(line) > 0:
+            self.showchar(line)
+        elif len(self.CurrentItem) > 0:
+            self.showchar(self.CurrentItem)
+        else:
+            print "please pass a value or select a current item with enum and pick"
+
+    def showchar(self, line):
         graphemes = ipaParse.GraphemeSplit(line)
         for g in graphemes:
             if g in ipaParse.ConsonantData:
