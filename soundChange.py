@@ -202,6 +202,7 @@ SPECIAL_NAME = "specialName"
 
 def DoReplacement(replacerPair, text):
     parser, toPattern = replacerPair
+    if text == '': return '' # don't bother trying to replace on empty
     s1, res = parser.Parse(text)
     if res == None:
         print "Failed to parse", text
