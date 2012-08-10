@@ -124,11 +124,14 @@ class Interactive(cmd.Cmd):
                 self.LastList.append(word)
 
     def do_loadsc(self, line):
-        import codecs
-        inFile = codecs.open(line+".soundchange", encoding="utf-8")
-        self.SoundChanges = None
-        for line in inFile.readlines():
-            self.LoadSoundChange(line.strip())
+        try:
+            import codecs
+            inFile = codecs.open(line+".soundchange", encoding="utf-8")
+            self.SoundChanges = None
+            for line in inFile.readlines():
+                self.LoadSoundChange(line.strip())
+        except:
+            print "error loading", line
 
     def do_savesc(self, line):
         soundChange.SoundChange.FromSoundChangeList(self.SoundChanges).Save(line+".soundchange")
