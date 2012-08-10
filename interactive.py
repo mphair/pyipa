@@ -38,15 +38,18 @@ class Interactive(cmd.Cmd):
         except:
             print "syntax: insertsc [index] [soundchange]"
     def do_listsc(self, line):
-        self.LastList = []
-        for sc in self.SoundChanges:
-            for rule in sc.OrigRules():
-                print rule
-                self.LastList.append(rule)
+        if not (hasattr(self, "SoundChanges")):
+            print "please add sound changes with addsc or loadsc"
+        else:
+            self.LastList = []
+            for sc in self.SoundChanges:
+                for rule in sc.OrigRules():
+                    print rule
+                    self.LastList.append(rule)
 
     def LoadSoundChange(self, rule, pos=None):
         sc = soundChange.SoundChange([rule], {"vowel": ipaParse.ALL_VOWELS})
-        if not(hasattr(self, "SoundChanges")):
+        if not(hasattr(self, "SoundChanges")) or self.SoundChanges == None:
             self.SoundChanges = []
         if pos == None:
             self.SoundChanges.append(sc)
@@ -93,6 +96,14 @@ class Interactive(cmd.Cmd):
                 print " = ".join(line)
                 self.LastList.append(line[0])
 
+    def do_listalphabet(self, line):
+        source = self.LangFromLineOrCurrent(line)
+        if source != None:
+            self.LastList = []
+            for line in source.Graphemes:
+                print line
+                self.LastList.append(line)
+
     def do_showchanges(self, line):
         source = self.LangFromLineOrCurrent(line)
         if source != None:
@@ -112,6 +123,7 @@ class Interactive(cmd.Cmd):
     def do_loadsc(self, line):
         import codecs
         inFile = codecs.open(line+".soundchange", encoding="utf-8")
+        self.SoundChanges = None
         for line in inFile.readlines():
             self.LoadSoundChange(line.strip())
 
