@@ -48,13 +48,16 @@ class Interactive(cmd.Cmd):
                     self.LastList.append(rule)
 
     def LoadSoundChange(self, rule, pos=None):
-        sc = soundChange.SoundChange([rule], {"vowel": ipaParse.ALL_VOWELS})
-        if not(hasattr(self, "SoundChanges")) or self.SoundChanges == None:
-            self.SoundChanges = []
-        if pos == None:
-            self.SoundChanges.append(sc)
-        else:
-            self.SoundChanges.insert(pos - 1, sc)
+        try:
+            sc = soundChange.SoundChange([rule], {"vowel": ipaParse.ALL_VOWELS})
+            if not(hasattr(self, "SoundChanges")) or self.SoundChanges == None:
+                self.SoundChanges = []
+            if pos == None:
+                self.SoundChanges.append(sc)
+            else:
+                self.SoundChanges.insert(pos - 1, sc)
+        except:
+            print "ADD SOUND CHANGE FAILED"
     def do_applysc(self, line):
         args = line.split(" ")
         source = self.AllFamilies[args[0]]
