@@ -145,7 +145,7 @@ def CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialN
             , ManyNode(
                 OrNode([
                     SequenceNode([
-                        GraphemeNode(fromPattern, name=FROM_NODE_NAME)
+                        fromNode
                         , OptionalNode(ManyNode(AlphaNode()))
                         , OrNode([EndNode(), WhitespaceNode()])
                     ])
@@ -161,7 +161,7 @@ def CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialN
                     SequenceNode([
                         ManyEndsWithSubsetNode(
                             OptionalNode(AlphaNode())
-                            , GraphemeNode(fromPattern, name=FROM_NODE_NAME)
+                            , fromNode
                             , 1
                         )
                         , OrNode([EndNode(), WhitespaceNode()])
@@ -175,7 +175,7 @@ def CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialN
             OrNode([
                 SequenceNode([
                     GraphemeNode(specialNames[conditionArgs[0]])
-                    , GraphemeNode(fromPattern, name=FROM_NODE_NAME)
+                    , fromNode
                     , GraphemeNode(specialNames[conditionArgs[1]])])
                 , AlphaNode()
                 , OrNode([EndNode(), WhitespaceNode()])
@@ -184,7 +184,7 @@ def CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialN
     elif condition == AFTER_NAMED_CONDITION:
         return ManyNode(
             OrNode([
-                SequenceNode([GraphemeNode(specialNames[conditionArgs[0]]), GraphemeNode(fromPattern, name=FROM_NODE_NAME)])
+                SequenceNode([GraphemeNode(specialNames[conditionArgs[0]]), fromNode])
                 , AlphaNode()
                 , OrNode([EndNode(), WhitespaceNode()])
             ])
@@ -192,7 +192,7 @@ def CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialN
     elif condition == BEFORE_NAMED_CONDITION:
         return ManyNode(
             OrNode([
-                SequenceNode([GraphemeNode(fromPattern, name=FROM_NODE_NAME), GraphemeNode(specialNames[conditionArgs[0]])])
+                SequenceNode([fromNode, GraphemeNode(specialNames[conditionArgs[0]])])
                 , AlphaNode()
                 , OrNode([EndNode(), WhitespaceNode()])
             ])
@@ -250,6 +250,7 @@ class SoundChange:
         self.Rules = [(rp,ruleLine) for (rp,ruleLine) in replacerPairs if rp != None]
         self.SpecialNames = specialNames
     def Apply(self, text):
+        if text == "": return "" # don't do anything to empty strings
         results = [text]
         for (rp,ruleLine) in self.Rules:
             results.append(DoReplacement(rp, results[-1]))
