@@ -47,9 +47,9 @@ def ExtractAlphabet(vocab, corpus):
     graphemes = set()
     suspectWords = set()
     for word in vocab:
-        [graphemes.add(g) for g in ipaParse.GraphemeSplit(word, errorsTo=suspectWords)]
+        [graphemes.add(g) for g in ipaParse.GraphemeSplit(word, errorsTo=suspectWords) if g in ipaParse.ALL_ALPHA]
     for line in corpus:
-        [graphemes.add(g) for g in ipaParse.GraphemeSplit(line[0], errorsTo=suspectWords)]
+        [graphemes.add(g) for g in ipaParse.GraphemeSplit(line[0], errorsTo=suspectWords) if g in ipaParse.ALL_ALPHA]
     return (list(graphemes), suspectWords)
 
 class Language:
