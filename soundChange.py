@@ -138,24 +138,24 @@ def CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialN
     else: fromNode = OrNode(fromNodes)
 
     if condition == None:
-        return ManyNode(OrNode([fromNode,OrNode([AlphaNode(),WhitespaceNode()])]))
+        return ManyNode(OrNode([fromNode,OrNode([AlphaNode(),WhitespaceOrPunctuationNode()])]))
     elif condition == START_OF_WORD_CONDITION:
         return SequenceNode([
-            OptionalWhitespaceNode()
+            OptionalNode(WhitespaceOrPunctuationNode())
             , ManyNode(
                 OrNode([
                     SequenceNode([
                         fromNode
                         , OptionalNode(ManyNode(AlphaNode()))
-                        , OrNode([EndNode(), WhitespaceNode()])
+                        , OrNode([EndNode(), WhitespaceOrPunctuationNode()])
                     ])
-                    , SequenceNode([ManyNode(AlphaNode()), OptionalNode(WhitespaceNode())])
+                    , SequenceNode([ManyNode(AlphaNode()), OptionalNode(WhitespaceOrPunctuationNode())])
                 ])
             )
         ])
     elif condition == END_OF_WORD_CONDITION:
         return SequenceNode([
-            OptionalWhitespaceNode()
+            OptionalNode(WhitespaceOrPunctuationNode())
             , ManyNode(
                 OrNode([
                     SequenceNode([
@@ -164,9 +164,9 @@ def CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialN
                             , fromNode
                             , 1
                         )
-                        , OrNode([EndNode(), WhitespaceNode()])
+                        , OrNode([EndNode(), WhitespaceOrPunctuationNode()])
                     ])
-                    , SequenceNode([ManyNode(AlphaNode()), OptionalNode(WhitespaceNode())])
+                    , SequenceNode([ManyNode(AlphaNode()), OptionalNode(WhitespaceOrPunctuationNode())])
                 ])
             )
         ])
@@ -178,7 +178,7 @@ def CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialN
                     , fromNode
                     , GraphemeNode(specialNames[conditionArgs[1]])])
                 , AlphaNode()
-                , OrNode([EndNode(), WhitespaceNode()])
+                , OrNode([EndNode(), WhitespaceOrPunctuationNode()])
             ])
         )
     elif condition == AFTER_NAMED_CONDITION:
@@ -186,7 +186,7 @@ def CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialN
             OrNode([
                 SequenceNode([GraphemeNode(specialNames[conditionArgs[0]]), fromNode])
                 , AlphaNode()
-                , OrNode([EndNode(), WhitespaceNode()])
+                , OrNode([EndNode(), WhitespaceOrPunctuationNode()])
             ])
         )
     elif condition == BEFORE_NAMED_CONDITION:
@@ -194,7 +194,7 @@ def CreateParserFromSoundChange(fromPatterns, condition, conditionArgs, specialN
             OrNode([
                 SequenceNode([fromNode, GraphemeNode(specialNames[conditionArgs[0]])])
                 , AlphaNode()
-                , OrNode([EndNode(), WhitespaceNode()])
+                , OrNode([EndNode(), WhitespaceOrPunctuationNode()])
             ])
         )
 
@@ -202,11 +202,11 @@ SPECIAL_NAME = "specialName"
 
 def DoReplacement(replacerPair, text):
     parser, toPattern = replacerPair
-    if text == '': return '' # don't bother trying to replace on empty
+    if text == None or text.strip() == '': return '' # don't bother trying to replace on empty
     s1, res = parser.Parse(text)
     if res == None:
-        print "Failed to parse", text
-        print "Was trying to replace with", toPattern
+        print "Failed to parse:", text
+        print "Was trying to replace with:", toPattern
         print "tag:", parser.Tag
         raise Exception("failed to parse")
     return res.ReplaceWith({FROM_NODE_NAME: toPattern})

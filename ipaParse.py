@@ -545,6 +545,12 @@ class ManyEndsWithSubsetNode(ParserNode):
         else:
             return self.ParsedMany.ReplaceWith(d) + self.ParsedEndsWith.ReplaceWith(d)
 
+class WhitespaceOrPunctuationNode(ManyNode):
+    def __init__(self, name=None):
+        ManyNode.__init__(self, OrNode([WhitespaceNode(), GraphemeNode(u".")]), name=name)
+    def __repr__(self):
+        return "WhitespaceOrPunctuationNode()"
+
 class GroupNode(SequenceNode):
     def __init__(self, leftGrouperNode, groupedNodes, rightGrouperNode, name=None):
         SequenceNode.__init__(self, [leftGrouperNode, groupedNodes, rightGrouperNode], name)
@@ -659,6 +665,16 @@ def DoTests():
          ,(("", True), 'p.Recognize(u" ")')
          ,(("b ", True), 'p.Recognize(u"b ")')
          ,(("b ", True), 'p.Recognize(u" b ")')
+        ])
+    CheckRepr(p)
+
+    p = WhitespaceOrPunctuationNode()
+    #print p
+    RunTests({'p': p},
+        [ (("", False), 'p.Recognize(u"")')
+         ,(("", True), 'p.Recognize(u" ")')
+         ,(("", True), 'p.Recognize(u".")')
+         ,(("", True), 'p.Recognize(u" . . ")')
         ])
     CheckRepr(p)
 
