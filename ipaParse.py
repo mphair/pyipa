@@ -373,7 +373,7 @@ class OptionalNode (ParserNode):
         return results
     def ReplaceWith(self, d):
         if self.Chosen == None:
-            return None
+            return ''
         elif self.Name in d.keys():
             return d[self.Name]
         else:
@@ -518,9 +518,9 @@ class ManyEndsWithSubsetNode(ParserNode):
         s1, res = self.Many.Parse(s0)
         if res == None: return s0, None
         L = GraphemeSplit(res.Text)
-        for backtrack in range(self.BacktrackStepSize, len(L), self.BacktrackStepSize):
+        for backtrack in range(self.BacktrackStepSize, len(L)+1, self.BacktrackStepSize):
             s1a, resa = self.Many.Parse(''.join(L[0:-backtrack]))
-            if resa == None: return s0, None
+            if resa == None: continue
             s1b, resb = self.EndsWith.Parse(''.join(L[-backtrack:]))
             if resb != None:
                 self.ParsedMany = resa
