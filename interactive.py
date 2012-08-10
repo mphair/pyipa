@@ -172,6 +172,14 @@ class Interactive(cmd.Cmd):
         else:
             print "please pass a value or select a current item with enum and pick"
 
+    def do_splitcur(self, line):
+        if len(self.CurrentItem) == 0:
+            print "please pick a current item with enum and pick"
+        self.LastList = []
+        for word in self.CurrentItem.split(" "):
+            print word
+            self.LastList.append(word)
+
     def showchar(self, line):
         graphemes = ipaParse.GraphemeSplit(line)
         for g in graphemes:
