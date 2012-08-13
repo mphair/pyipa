@@ -125,10 +125,8 @@ class LanguageFamily:
                 langName = entry[0:-len(CORPUS_FILE_EXT)]
                 corpus = ParseCorpusFile(fullPath)
                 if langName in self.Languages:
-                    print "setting corpus"
                     self.Languages[langName].SetCorpus(corpus)
                 else:
-                    print "unbound corpus"
                     unboundCorpuses[langName] = corpus
             else:
                 print "unknown filetype:", entry
