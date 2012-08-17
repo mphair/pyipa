@@ -60,7 +60,11 @@ class Interactive(cmd.Cmd):
             print "ADD SOUND CHANGE FAILED"
     def do_applysc(self, line):
         args = line.split(" ")
-        source = self.AllFamilies[args[0]]
+        sourceName = args[0]
+        if sourceName not in self.AllFamilies:
+            print sourceName, "doesn't exist"
+            return
+        source = self.AllFamilies[sourceName]
         destName = args[1]
         if destName in self.AllFamilies:
             print destName, "already exists."
