@@ -20,14 +20,20 @@ class Interactive(cmd.Cmd):
         else:
             print self.AllFamilies.FamilyTree("*", 0)
         self.CurrentLangName = ""
+        self.CurrentItem = ""
+        self.LastList = []
+        self.SoundChanges = []
+        self.SoundChangeSets = self.AllFamilies.AllAvailableSoundChanges()
     def emptyline(self):
         pass
     def do_fams(self, line):
         print self.AllFamilies.FamilyTree("*", 0)
+    def addsc_help(self):
+        print "addsc <rule> - add a new soundchange"
     def do_addsc(self, line):
         line = line.decode('raw_unicode_escape')
-        self.LoadSoundChange(line)
-        for rule in self.SoundChanges[-1].OrigRules(): print rule
+        if (self.LoadSoundChange(line)):
+            for rule in self.SoundChanges[-1].OrigRules(): print rule
     def do_insertsc(self, line):
         line = line.decode('raw_unicode_escape')
         lineparts = line.split(" ")
@@ -38,7 +44,7 @@ class Interactive(cmd.Cmd):
         except:
             print "syntax: insertsc [index] [soundchange]"
     def do_listsc(self, line):
-        if not (hasattr(self, "SoundChanges")):
+        if (len(self.SoundChanges) == 0):
             print "please add sound changes with addsc or loadsc"
         else:
             self.LastList = []
@@ -50,14 +56,14 @@ class Interactive(cmd.Cmd):
     def LoadSoundChange(self, rule, pos=None):
         try:
             sc = soundChange.SoundChange([rule], {"vowel": ipaParse.ALL_VOWELS})
-            if not(hasattr(self, "SoundChanges")) or self.SoundChanges == None:
-                self.SoundChanges = []
             if pos == None:
                 self.SoundChanges.append(sc)
             else:
                 self.SoundChanges.insert(pos - 1, sc)
+            return True
         except:
             print "ADD SOUND CHANGE FAILED"
+            return False
     def do_applysc(self, line):
         args = line.split(" ")
         sourceName = args[0]
@@ -111,6 +117,16 @@ class Interactive(cmd.Cmd):
                 print line
                 self.LastList.append(line)
 
+    def help_listwords(self):
+        print "listwords [lang] - list the vocabulary of a language"
+    def do_listwords(self, line):
+        source = self.LangFromLineOrCurrent(line)
+        if source != None:
+            self.LastList = []
+            for key in source.Vocabulary.keys():
+                print key, ":", str(source.Vocabulary[key])
+                self.LastList.append(key)
+
     def do_showchanges(self, line):
         source = self.LangFromLineOrCurrent(line)
         if source != None:
@@ -127,20 +143,51 @@ class Interactive(cmd.Cmd):
                 print word
                 self.LastList.append(word)
 
-    def do_loadsc(self, line):
+    def help_loadscfrompath(self):
+        print "loadscfrompath /full/path/to/file - load a soundchange file directly"
+    def do_loadscfrompath(self, line):
         try:
-            import codecs
-            inFile = codecs.open(line+".soundchange", encoding="utf-8")
-            self.SoundChanges = None
-            for line in inFile.readlines():
-                self.LoadSoundChange(line.strip())
+            self.SoundChanges = soundChange.GetSoundChanges(line)
         except:
             print "error loading", line
 
-    def do_savesc(self, line):
-        soundChange.SoundChange.FromSoundChangeList(self.SoundChanges).Save(line+".soundchange")
-        print "saved."
+    def help_listscsets(self):
+        print "listscsets - list available sound change sets"
+    def do_listscsets(self, line):
+        self.LastList = []
+        for name in self.SoundChangeSets.keys():
+            print name
+            self.LastList.append(name)
 
+    def help_loadsc(self):
+        print "loadsc [sound change name] - load a sound change from (optionally) a sound change name or (by default) the current item"
+    def do_loadsc(self, line):
+        scName = ""
+        if (line != ""):
+            if (line in self.SoundChangeSets.keys()):
+                scName = line
+            else:
+                print "no such sound change set available:", line
+                return
+        else:
+            print 'using current item', self.CurrentItem
+            if (self.CurrentItem in self.SoundChangeSets.keys()):
+                scName = self.CurrentItem
+            else:
+                print "no such sound change set available:", self.CurrentItem
+                return
+        self.SoundChanges = [sc for sc in self.SoundChangeSets[scName]]
+        print "Loaded", len(self.SoundChanges), "sound changes."
+
+    def help_savesc(self):
+            print "savesc <full_path_to_sc_file_including_.soundchange> - save a soundchange file"
+    def do_savesc(self, line):
+        soundChange.SoundChange.FromSoundChangeList(self.SoundChanges).Save(line)
+        print "saved."
+        #TODO: Extract the filename and then put this in the list of available sound change sets
+
+    def help_enum(self):
+        print "enum - enumerate the last list so that you can pick one with pick"
     def do_enum(self, line):
         for item in enumerate(self.LastList):
             print item[0]+1,":",item[1]
@@ -217,11 +264,15 @@ class Interactive(cmd.Cmd):
             print lang
             self.LastList.append(lang.Name)
 
+    def help_lookup(self):
+        print "lookup - lookup current item"
     def do_lookup(self, line):
         if len(self.CurrentLangName) == 0:
             print "please select a current language with lang"
+            return
         elif len(self.CurrentItem) == 0:
             print "please select a current item with enum and pick"
+            return
         lang = self.AllFamilies[self.CurrentLangName]
         if self.CurrentItem in lang.Vocabulary:
             print self.CurrentItem,":",lang.Vocabulary[self.CurrentItem]

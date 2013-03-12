@@ -4,9 +4,12 @@
 DICTIONARY_FILE_EXT = ".dictionary"
 ALPHABET_FILE_EXT = ".alphabet"
 CORPUS_FILE_EXT = ".corpus"
+SOUNDCHANGE_FILE_EXT = ".soundchange"
 
 import ipaParse
 import codecs
+import soundChange
+
 def ParseDictionaryFile(fileName):
     f = codecs.open(fileName, encoding="utf-8")
     splitlines = [[l.strip() for l in line.split("\t")] for line in f.readlines()]
@@ -94,12 +97,14 @@ class LanguageFamily:
         self.SubFamilies = []
         self.Languages = {}
         self.Name = name
+        self.AvailableSoundChanges = {}
     def __repr__(self):
         return self.Name + " (" + str(len(self.AllChildLanguages().keys())) + " languages)"
     def LoadFromPath(self, path):
         import os
         unboundAlphabets = {}
         unboundCorpuses = {}
+        availableSoundChanges = []
         for entry in os.listdir(path):
             fullPath = os.path.join(path, entry)
             if os.path.isdir(fullPath):
@@ -128,6 +133,10 @@ class LanguageFamily:
                     self.Languages[langName].SetCorpus(corpus)
                 else:
                     unboundCorpuses[langName] = corpus
+            elif entry.lower().endswith(SOUNDCHANGE_FILE_EXT):
+                changeName = entry[0:-len(SOUNDCHANGE_FILE_EXT)]
+                changeSet = soundChange.GetSoundChanges(fullPath)
+                self.AvailableSoundChanges[changeName] = changeSet
             else:
                 print "unknown filetype:", entry
     def __getitem__(self, key):
@@ -141,6 +150,11 @@ class LanguageFamily:
         result = dict(self.Languages)
         for family in self.SubFamilies:
             result = dict(result.items() + family.AllChildLanguages().items())            
+        return result
+    def AllAvailableSoundChanges(self):
+        result = dict(self.AvailableSoundChanges)
+        for family in self.SubFamilies:
+            result = dict(result.items() + family.AllAvailableSoundChanges().items())
         return result
     def FamilyTree(self, indentStr, indentAmount):
         return (indentStr*indentAmount + str(self) + "\n"

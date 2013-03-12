@@ -273,6 +273,15 @@ class SoundChange:
         specialNames = CombineListOfDicts([sc.SpecialNames for sc in sc_list])
         return SoundChange(ruleList, specialNames)
 
+def GetSoundChanges(full_path):
+    import codecs
+    soundChanges = []
+    inFile = codecs.open(full_path, encoding="utf-8")
+    for rule in inFile.readlines():
+        sc = SoundChange([rule.strip()], {"vowel": ALL_VOWELS})
+        soundChanges.append(sc)
+    return soundChanges
+
 if __name__ == '__main__':
     specialNames={"vowel":["a","e","i","o","u"]} # these vowels just for testing, get full list from ipaParse
     for test in TESTS:
