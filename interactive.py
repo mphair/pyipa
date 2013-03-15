@@ -265,7 +265,7 @@ class Interactive(cmd.Cmd):
             self.LastList.append(lang.Name)
 
     def help_lookup(self):
-        print "lookup - lookup current item"
+        print "lookup - lookup current item in dictionary"
     def do_lookup(self, line):
         if len(self.CurrentLangName) == 0:
             print "please select a current language with lang"
@@ -275,7 +275,11 @@ class Interactive(cmd.Cmd):
             return
         lang = self.AllFamilies[self.CurrentLangName]
         if self.CurrentItem in lang.Vocabulary:
-            print self.CurrentItem,":",lang.Vocabulary[self.CurrentItem]
+            for definition in lang.Vocabulary[self.CurrentItem]:
+                byAttrib = paddedZip(lang.Attributes[1:], "?", definition, "?")
+                print self.CurrentItem,":"
+                for attrib,value in byAttrib:
+                    print " ",attrib + ":",value
         else:
             print self.CurrentItem,"not in",lang
 
@@ -288,6 +292,17 @@ class Interactive(cmd.Cmd):
 
     def do_quit(self, line):
         return True
+
+def padded(l, pad):
+    for x in l: yield x
+    while True: yield pad
+def paddedZip(L1,P1,L2,P2):
+    if len(L1) == len(L2):
+        return zip(L1,L2)
+    elif len(L1) > len(L2):
+        return zip(L1, padded(L2,P2))
+    else:
+        return zip(padded(L1,P1), L2)
 
 if __name__ == '__main__':
     interact = Interactive()

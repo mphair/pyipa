@@ -5,6 +5,7 @@ DICTIONARY_FILE_EXT = ".dictionary"
 ALPHABET_FILE_EXT = ".alphabet"
 CORPUS_FILE_EXT = ".corpus"
 SOUNDCHANGE_FILE_EXT = ".soundchange"
+ATTRIBUTE_FILE_EXT = ".attrib"
 
 import ipaParse
 import codecs
@@ -55,6 +56,12 @@ def ExtractAlphabet(vocab, corpus):
         [graphemes.add(g) for g in ipaParse.GraphemeSplit(line[0], errorsTo=suspectWords) if g in ipaParse.ALL_ALPHA]
     return (list(graphemes), suspectWords)
 
+def GetDefaultAttributes():
+    return ("WORD","PART OF SPEECH","DEFINITION")
+def ParseAttributeFile(fileName):
+    line = codecs.open(fileName, encoding="utf-8").readlines()[0]
+    return GetDefaultAttributes() + tuple([chunk.strip() for chunk in line.strip().split("\t")])
+
 class Language:
     def __init__(self, name, vocabulary, alphabet=None, suspectWords=None, corpus=None):
         if not(isinstance(vocabulary, dict)): raise Exception("Language expects a dict for vocabulary, got a: " + str(type(vocabulary)))
@@ -63,6 +70,7 @@ class Language:
         self.Graphemes = list(alphabet) if alphabet != None else list()
         self.SuspectWords = set(suspectWords) if suspectWords != None else set()
         self.Corpus = list(corpus) if corpus != None else list()
+        self.Attributes = GetDefaultAttributes()
     def __repr__(self):
         alphabet = ", " + str(len(self.Graphemes)) + " graphemes" if len(self.Graphemes) > 0 else ""
         corpus = ", " + str(len(self.Corpus)) + " corpus entries" if len(self.Corpus) > 0 else ""
@@ -104,6 +112,7 @@ class LanguageFamily:
         import os
         unboundAlphabets = {}
         unboundCorpuses = {}
+        unboundAttributes = {}
         availableSoundChanges = []
         for entry in os.listdir(path):
             fullPath = os.path.join(path, entry)
@@ -119,6 +128,9 @@ class LanguageFamily:
                     alphabet = (unboundAlphabets[langName] if langName in unboundAlphabets else None),
                     corpus = (unboundCorpuses[langName] if langName in unboundCorpuses else None)
                 )
+                if langName in unboundAttributes:
+                    self.Languages[langName].Attribues = unboundAttributes[langName]
+                    print "bound", unboundAttributes[langName], "to", langName
             elif entry.lower().endswith(ALPHABET_FILE_EXT):
                 langName = entry[0:-len(ALPHABET_FILE_EXT)]
                 alphabet = ParseAlphabetFile(fullPath)
@@ -137,6 +149,15 @@ class LanguageFamily:
                 changeName = entry[0:-len(SOUNDCHANGE_FILE_EXT)]
                 changeSet = soundChange.GetSoundChanges(fullPath)
                 self.AvailableSoundChanges[changeName] = changeSet
+            elif entry.lower().endswith(ATTRIBUTE_FILE_EXT):
+                langName = entry[0:-len(ATTRIBUTE_FILE_EXT)]
+                attribs = ParseAttributeFile(fullPath)
+                if langName in self.Languages:
+                    self.Languages[langName].Attributes = attribs
+                    print "found bound attrib for",langName
+                else:
+                    unboundAttributes[langName] = attribs
+                    print "found unbound attrib for",langName
             else:
                 print "unknown filetype:", entry
     def __getitem__(self, key):
