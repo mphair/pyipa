@@ -125,7 +125,9 @@ def GraphemeSplit(s, errorsTo=None):
 
 ALL_CONSONANTS = GraphemeSplit(VOICING['unvoiced'] + VOICING['voiced'])
 ALL_VOWELS = GraphemeSplit(ROUNDEDNESS['unrounded'] + ROUNDEDNESS['rounded'])
-ALL_ALPHA = ALL_CONSONANTS + ALL_VOWELS
+ALL_PSEUDO_ALPHA = [u'-'] # so that we can have prefixes and suffixes in dictionary with no parsing trouble
+ALL_ALPHA = ALL_CONSONANTS + ALL_VOWELS + ALL_PSEUDO_ALPHA
+
 
 ConsonantData = {}
 for c in ALL_CONSONANTS:
