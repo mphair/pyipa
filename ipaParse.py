@@ -108,6 +108,7 @@ def PopGrapheme(s):
         return s, ''
 
 def GraphemeSplit(s, errorsTo=None):
+    if not(type(s) is unicode): raise TypeError("argument should be unicode string, is" + str(type(s)))
     graphemeL = []
     while len(s) > 0:
         try:
