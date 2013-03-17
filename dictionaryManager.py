@@ -97,6 +97,22 @@ def loadwestern():
 
 def initials(actor): return '/'.join([a[0] for a in actor])
 
+def add_qualified_nouns():
+    ###### Add plurals before using this
+    global definiteness
+    global nouns
+    global qual_nouns
+    definiteness = pickle.load(open('definiteness.pickle'))
+    defins = definiteness.keys()
+    nouns = [[item[0]]+item[1][0][1:] for item in western.Vocabulary.items() if item[1][0][0] == u'N']
+    qual_nouns = [( CombineAffix(noun[0],definiteness[d][noun[2]]), noun[1]+u"("+d+u")", noun[2], noun[3], noun[4]) for noun in nouns for d in defins]
+    pickle.dump(qual_nouns, open('qual_nouns.pickle','w'))
+    for item in qual_nouns:
+        word,d,g,s,l = item
+        if not(word in western.Vocabulary):
+            western.Vocabulary[word] = []
+        western.Vocabulary[word].append([u'QUALN',d,g,s,l])
+
 def add_conj_verbs():
     global agreement
     global verbs
@@ -112,6 +128,20 @@ def add_conj_verbs():
         if not(word in western.Vocabulary):
             western.Vocabulary[word] = []
         western.Vocabulary[word].append([u'CONJV',d,g,s,l])
+def add_conj_adj():
+    global adj_agreement
+    global adjectives
+    global conj_adj
+    allattrib = [u'LIGHT',u'NEUTRAL',u'DARK']
+    adj_agreement = pickle.load(open('adj_agreement.pickle'))
+    adjectives = [[item[0]]+item[1][0][1:] for item in western.Vocabulary.items() if item[1][0][0] == u'ADJ']
+    conj_adj = [( CombineAffix(adj[0],adj_agreement[adj[4]][attri]), adj[1]+u"(actor="+attri+u")", attri) for adj in adjectives for attri in allattrib]
+    ##>>> pickle.dump(conj_adj, open('conj_adj.pickle','w'))
+    for item in conj_adj:
+        word,d,l = item
+        if not(word in western.Vocabulary):
+            western.Vocabulary[word] = []
+        western.Vocabulary[word].append([u'CONJADJ',d,l])
 # ===============================================
 
 if __name__ == '__main__':
