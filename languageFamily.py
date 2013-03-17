@@ -94,7 +94,11 @@ class Language:
 
     @staticmethod
     def FromSoundChange(languageIn, newName, soundChangeFunc):
-        vocab = {soundChangeFunc(word)[-1]:entry for (word,entry) in languageIn.Vocabulary.items()}
+        vocab = {}
+        for (w,entryList) in languageIn.Vocabulary.items():
+            word = soundChangeFunc(w)[-1]
+            if not(word in vocab): vocab[word] = []
+            vocab[word].extend(entryList)
         corpus = [[soundChangeFunc(s[0])[-1]]+s[1:] for s in languageIn.Corpus]
         extractedAlphabet, suspectWords = ExtractAlphabet(vocab, corpus)
         alphabet = AddToAlphabetIfNeeded([soundChangeFunc(letter)[-1] for letter in languageIn.Graphemes], extractedAlphabet)
