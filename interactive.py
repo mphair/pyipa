@@ -28,12 +28,15 @@ class Interactive(cmd.Cmd):
         pass
     def do_fams(self, line):
         print self.AllFamilies.FamilyTree("*", 0)
-    def addsc_help(self):
-        print "addsc <rule> - add a new soundchange"
+    def help_addsc(self):
+        print "addsc <rule> - add a new soundchange, format X > Y / C unicode character format is \\uXXXX"
     def do_addsc(self, line):
         line = line.decode('raw_unicode_escape')
-        if (self.LoadSoundChange(line)):
-            for rule in self.SoundChanges[-1].OrigRules(): print rule
+        try:
+            if (self.LoadSoundChange(line)):
+                for rule in self.SoundChanges[-1].OrigRules(): print rule
+        except UnicodeDecodeError:
+            print "unicode character format is \\uXXXX"
     def do_insertsc(self, line):
         line = line.decode('raw_unicode_escape')
         lineparts = line.split(" ")
@@ -79,16 +82,23 @@ class Interactive(cmd.Cmd):
             self.AllFamilies[destName] = Language.FromSoundChange(source, destName, sc.Apply)
             print destName, "added."
     def getChangesAndSame(self, source):
-        sc = soundChange.SoundChange.FromSoundChangeList(self.SoundChanges)
         changes = []
         same = []
-        for word in source.Vocabulary.keys():
-            result = sc.Apply(word)[-1]
+        for (word,result) in self.yieldFromSoundChange(source):
             if word == result:
                 same.append(word)
             else:
                 changes.append(word + u"->" + result)
         return changes, same
+    def yieldChangeOrSameFromSoundChange(self, isChange, source):
+        for (word,result) in self.yieldFromSoundChange(source):
+            if (word == result and not(isChange)) or (word != result and isChange):
+                yield (word,result)
+    def yieldFromSoundChange(self, source):
+        sc = soundChange.SoundChange.FromSoundChangeList(self.SoundChanges)
+        for word in source.Vocabulary.keys():
+            result = sc.Apply(word)[-1]
+            yield (word, result)
 
     def LangFromLineOrCurrent(self, line):
         args = line.split(" ")
@@ -127,21 +137,56 @@ class Interactive(cmd.Cmd):
                 print key, ":", str(source.Vocabulary[key])
                 self.LastList.append(key)
 
-    def do_showchanges(self, line):
-        source = self.LangFromLineOrCurrent(line)
-        if source != None:
-            self.LastList = []
-            for word in self.getChangesAndSame(source)[0]:
-                print word
-                self.LastList.append(word)
 
+    def help_showchanges(self):
+        print "showchanges [limit [skip]] - show words affected by soundchange, at most limit entries displayed, skipping skip"
+    def do_showchanges(self, line):
+        self.showsameordiff(line, True)
+
+    def help_showsame(self):
+        print "showsame [limit [skip]] - show words unaffected by soundchange, at most limit entries displayed, skipping skip"
     def do_showsame(self, line):
-        source = self.LangFromLineOrCurrent(line)
+        self.showsameordiff(line, False)
+
+    def parseLimitSkip(self, line):
+        limit = 0
+        skip = 0
+        try:
+            limit = int(line.strip().split(" ")[0])
+            skip = int(line.strip().split(" ")[1])
+        except (IndexError,ValueError):
+            pass
+        return limit, skip
+
+    def showsameordiff(self, line, isShowDiff):
+        limit,skip = self.parseLimitSkip(line)
+        source = self.LangFromLineOrCurrent('') # no lang from line
         if source != None:
             self.LastList = []
-            for word in self.getChangesAndSame(source)[1]:
+            count = 0
+            for (orig,word) in take(self.yieldChangeOrSameFromSoundChange(isShowDiff, source),skip):
+                count += 1
+                if (isShowDiff): print orig, "->",
                 print word
                 self.LastList.append(word)
+                if (limit != 0 and count >= limit):
+                    break
+
+    def help_showcc(self):
+        print "showcc [limit [skip]] - show words with two consonants in a row after soundchange, at most limit entries displayed, skipping skip"
+    def do_showcc(self, line):
+        limit,skip = self.parseLimitSkip(line)
+        source = self.LangFromLineOrCurrent('') # no lang from line
+        if source != None:
+            self.LastList = []
+            for (orig, word) in take(self.yieldFromSoundChange(source),skip):
+                gs = ipaParse.GraphemeSplit(word)
+                for pair in [(gs[ii],gs[ii+1]) for ii in range(len(gs)-1)]:
+                    if pair[0] in ipaParse.ALL_CONSONANTS and pair[1] in ipaParse.ALL_CONSONANTS:
+                        print word
+                        self.LastList.append(word)
+                        break
+                if limit > 0 and len(self.LastList) >= limit: break
 
     def help_loadscfrompath(self):
         print "loadscfrompath /full/path/to/file - load a soundchange file directly"
@@ -292,6 +337,10 @@ class Interactive(cmd.Cmd):
 
     def do_quit(self, line):
         return True
+
+def take(gen, count):
+    zip(range(count),gen)
+    return gen
 
 def padded(l, pad):
     for x in l: yield x
