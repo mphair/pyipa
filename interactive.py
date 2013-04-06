@@ -67,6 +67,8 @@ class Interactive(cmd.Cmd):
         except:
             print "ADD SOUND CHANGE FAILED"
             return False
+    def help_applysc(self):
+        print "applysc <source_lang> <dest_lang_name> - apply current sc to source_lang to create a new lang named dest_lang_name"
     def do_applysc(self, line):
         args = line.split(" ")
         sourceName = args[0]
