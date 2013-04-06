@@ -107,7 +107,8 @@ def loadimpiety():
     os.chdir("..")
     genders = [u'MALE',u'FEMALE',u'CHILD',u'AGED']
     tenses = [u'distant past', u'memorable past', u'future', u'present']    
-
+    expectedTense = {u'MALE':{u'distant past': u'm\u0259',u'present':u'',u'memorable past':u'm',u'future':'mim'}, u'FEMALE':{u'distant past': u'm\u0259',u'present':u'',u'memorable past':u'm',u'future':'mim'}, u'CHILD':{u'distant past': u'hak',u'present':u'',u'memorable past':u'ha',u'future':'hikim'}, u'AGED':{u'distant past': u'hak',u'present':u'',u'memorable past':u'ha',u'future':'hikim'}}
+    
 def initials(actor): return '/'.join([a[0] for a in actor])
 
 def add_qualified_nouns():
@@ -199,10 +200,25 @@ def yieldMatchingTense(gv,tense):
         if y[2][len(dat[0][1])+13:-1] == tense:
             yield (y[0],y[3:])
 
+def yieldDoesNotHaveExpectedTense(gv, expectedTense):
+    v,dat = gv
+    for y in dat[1]:
+        v_gender = dat[0][-3]
+        y_tense = y[2][len(dat[0][1])+13:-1]
+        if not(y[0].endswith(expectedTense[v_gender][y_tense])):
+            yield y[0],y[3:],y_tense
+
+
 def yieldContainsFull(gv):
     v,dat = gv
     for y in dat[1]:
         if v in y[0]:
+            yield (y[0],y[3:])
+
+def yieldNotContainsFull(gv):
+    v,dat = gv
+    for y in dat[1]:
+        if not(v in y[0]):
             yield (y[0],y[3:])
 
 def countContainsFull(gv):
