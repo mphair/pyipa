@@ -189,6 +189,21 @@ class Interactive(cmd.Cmd):
                         self.LastList.append(word)
                         break
                 if limit > 0 and len(self.LastList) >= limit: break
+    def help_showvv(self):
+        print "showvv [limit [skip]] - show words with two vowels in a row after soundchange, at most limit entries displayed, skipping skip"
+    def do_showvv(self, line):
+        limit,skip = self.parseLimitSkip(line)
+        source = self.LangFromLineOrCurrent('') # no lang from line
+        if source != None:
+            self.LastList = []
+            for (orig, word) in take(self.yieldFromSoundChange(source),skip):
+                gs = ipaParse.GraphemeSplit(word)
+                for pair in [(gs[ii],gs[ii+1]) for ii in range(len(gs)-1)]:
+                    if pair[0] in ipaParse.ALL_VOWELS and pair[1] in ipaParse.ALL_VOWELS:
+                        print word
+                        self.LastList.append(word)
+                        break
+                if limit > 0 and len(self.LastList) >= limit: break
 
     def help_loadscfrompath(self):
         print "loadscfrompath /full/path/to/file - load a soundchange file directly"
