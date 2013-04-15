@@ -96,9 +96,12 @@ class Interactive(cmd.Cmd):
         for (word,result) in self.yieldFromSoundChange(source):
             if (word == result and not(isChange)) or (word != result and isChange):
                 yield (word,result)
-    def yieldFromSoundChange(self, source):
+    def yieldFromSoundChange(self, source, inclVocab=True, inclCorpus=False):
         sc = soundChange.SoundChange.FromSoundChangeList(self.SoundChanges)
-        for word in source.Vocabulary.keys():
+        words = []
+        if inclVocab: words.extend(source.Vocabulary.keys())
+        if inclCorpus: words.extend([x[0] for x in source.Corpus])
+        for word in words:
             result = sc.Apply(word)[-1]
             yield (word, result)
 
@@ -203,6 +206,17 @@ class Interactive(cmd.Cmd):
                         print word
                         self.LastList.append(word)
                         break
+                if limit > 0 and len(self.LastList) >= limit: break
+    def help_showcorpus(self):
+        print "showcorpus [limit [skip]] - show corpus after soundchange, at most limit entries displayed, skipping skip"
+    def do_showcorpus(self, line):
+        limit,skip = self.parseLimitSkip(line)
+        source = self.LangFromLineOrCurrent('') # no lang from line
+        if source != None:
+            self.LastList = []
+            for (orig, word) in take(self.yieldFromSoundChange(source,inclVocab=False,inclCorpus=True),skip):
+                print word
+                self.LastList.append(word)
                 if limit > 0 and len(self.LastList) >= limit: break
 
     def help_loadscfrompath(self):
