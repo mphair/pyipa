@@ -15,6 +15,7 @@ SHOW_PASSES = False
 MANNER = {"nasal": u'm̥mɱn̪n̥nn̠ɳɲ̥ɲŋ̊ŋɴ',
            "plosive": u'pbp̪b̪t̪d̪tdʈɖcɟkɡgqɢʡʔ',
            "fricative": u'ɸβfvθðszʃʒʂʐçʝxɣχʁħʕʜʢhɦ',
+           # "affricate": u't͡sd͡zt͡ʃd͡ʒ', # different type of combining character, one before one after... need to integrate handling for that
            "approximant": u'ʋɹɻjɰʁʕʢhɦw',
            "trill": u'ʙrʀя', # does not include retroflex because of unsupported glyph stuff,
            "flap_or_tap": u'ⱱ̟ⱱɾɽɢ̆ʡ̯',
@@ -33,8 +34,9 @@ PLACE = {
     },
     "coronal": {
         "dental": u'n̪t̪d̪θð',
-        "alveolar": u'n̥ntdszɹrɾɬɮlɺ',
+        "alveolar": u'n̥ntdszɹrɾɬɮlɺ',  # plus t͡s d͡z, once we have proper handling for that combining character 
         "postlav": u'n̠ʃʒ',
+        # "palatized postalv": u't͡ʃd͡ʒ',
         "retroflex": u'ɳʈɖʂʐɻɽɭ˔̊ɭɺ̠'
     },
     "dorsal": {
