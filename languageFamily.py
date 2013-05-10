@@ -96,6 +96,9 @@ class Language:
     def FromSoundChange(languageIn, newName, soundChangeFunc):
         vocab = {}
         for (w,entryList) in languageIn.Vocabulary.items():
+            if (len(w) == 0):
+                print "empty line in input lang vocab"
+                continue
             word = soundChangeFunc(w)[-1]
             if not(word in vocab): vocab[word] = []
             vocab[word].extend(entryList)
